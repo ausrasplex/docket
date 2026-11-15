@@ -1,6 +1,6 @@
 "use client"
 
-import { useSyncExternalStore } from "react"
+import { useId, useSyncExternalStore } from "react"
 import { X } from "lucide-react"
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 
@@ -83,11 +83,15 @@ export function OptionRow({
   detail?: string
   icon?: React.ReactNode
 }) {
+  // the title is the option's name; the detail is read as its description
+  const id = useId()
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
+      aria-label={title}
+      aria-describedby={detail ? id : undefined}
       onClick={onSelect}
       className={
         "flex min-h-15 w-full cursor-pointer items-center gap-3 rounded-xl border-2 bg-surface2 px-3.5 py-2.5 text-left hover:bg-t1 " +
@@ -97,7 +101,11 @@ export function OptionRow({
       {icon}
       <span className="flex min-w-0 flex-1 flex-col">
         <b className="text-sm font-bold">{title}</b>
-        {detail ? <span className="text-xs font-medium text-muted-foreground">{detail}</span> : null}
+        {detail ? (
+          <span id={id} className="text-xs font-medium text-muted-foreground">
+            {detail}
+          </span>
+        ) : null}
       </span>
     </button>
   )

@@ -2,9 +2,9 @@ import "server-only"
 import { db } from "@/lib/db"
 import type { TargetOption } from "@/components/documents/target-picker"
 
-/** Everything a document can be filed to in this property: items, their parts, rooms, and paint/finishes. */
+/** Everything a document can be filed to in this property: items and their parts, rooms, jobs, and paint/finishes. */
 export async function fileTargets(householdId: string, propertyId: string): Promise<TargetOption[]> {
-  const [items, rooms, finishes] = await Promise.all([
+  const [items, rooms, finishes, jobs] = await Promise.all([
     db.fixture.findMany({
       where: { householdId, propertyId, archivedAt: null, parentId: null },
       orderBy: { name: "asc" },
@@ -25,6 +25,12 @@ export async function fileTargets(householdId: string, propertyId: string): Prom
       orderBy: [{ colourName: "asc" }],
       select: { id: true, colourName: true, colourCode: true, product: true, space: { select: { name: true } } },
     }),
+    db.job.findMany({
+      where: { householdId, propertyId, archivedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: { id: true, title: true },
+    }),
   ])
   return [
     ...items.flatMap((i): TargetOption[] => [
@@ -32,6 +38,7 @@ export async function fileTargets(householdId: string, propertyId: string): Prom
       ...i.parts.map((p): TargetOption => ({ type: "fixture", id: p.id, name: `${i.name} › ${p.name}` })),
     ]),
     ...rooms.map((r): TargetOption => ({ type: "space", id: r.id, name: r.name })),
+    ...jobs.map((j): TargetOption => ({ type: "job", id: j.id, name: j.title })),
     ...finishes.map((f): TargetOption => ({ type: "finish", id: f.id, name: f.colourName ?? f.colourCode ?? f.product ?? "Finish", detail: f.space.name })),
   ]
 }

@@ -43,6 +43,8 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
           take: 2,
           select: { label: true, space: { select: { name: true } }, fixture: { select: { name: true, parent: { select: { name: true } } } },
             finish: { select: { colourName: true, colourCode: true, product: true, space: { select: { name: true } } } },
+            job: { select: { title: true } },
+            expense: { select: { description: true, vendor: true, job: { select: { title: true } } } },
           },
         },
       },
@@ -77,7 +79,11 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
                     ? [l.fixture.parent?.name, l.fixture.name].filter(Boolean).join(" › ")
                     : l.finish
                       ? `${l.finish.space.name} › ${l.finish.colourName ?? l.finish.colourCode ?? l.finish.product ?? "Paint"}`
-                      : l.space?.name
+                      : l.job
+                        ? l.job.title
+                        : l.expense
+                          ? [l.expense.job?.title, l.expense.description ?? l.expense.vendor ?? "Cost"].filter(Boolean).join(" › ")
+                          : l.space?.name
                   return [place, l.label].filter(Boolean).join(" · ")
                 })
                 .filter(Boolean)

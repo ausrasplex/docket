@@ -14,7 +14,7 @@ import { atLeast } from "@/lib/roles"
 import { FixtureMenu } from "./fixture-menu"
 import { BrandCard } from "./brand-card"
 import { PartsList } from "./parts-list"
-import { DocGroups, type DocGroup } from "./doc-groups"
+import { DocGroups, type DocGroup } from "@/components/documents/doc-groups"
 import type { FixtureInput } from "../actions"
 
 const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const

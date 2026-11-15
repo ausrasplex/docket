@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { DoorOpen, Lamp, Paintbrush, Search } from "lucide-react"
+import { DoorOpen, Hammer, Lamp, Paintbrush, Search } from "lucide-react"
 import { cn } from "cn"
 import type { Target } from "@/app/(app)/documents/actions"
 
@@ -25,6 +25,7 @@ export function TargetPicker({
   const groups = [
     { title: "Items", icon: Lamp, list: shown.filter((o) => o.type === "fixture") },
     { title: "Rooms", icon: DoorOpen, list: shown.filter((o) => o.type === "space") },
+    { title: "Jobs", icon: Hammer, list: shown.filter((o) => o.type === "job") },
     { title: "Paint and Finishes", icon: Paintbrush, list: shown.filter((o) => o.type === "finish") },
   ].filter((g) => g.list.length)
 

@@ -41,11 +41,16 @@ export async function updateDocument(id: string, input: DocInput): Promise<Resul
 }
 
 /** Where a document can be filed. Jobs and receipts join this as they're built. */
-export type Target = { type: "space" | "fixture" | "finish"; id: string }
+export type Target = { type: "space" | "fixture" | "finish" | "job" | "expense"; id: string }
 
 /** The target's display name, or null when it isn't in this household. */
 async function targetName(householdId: string, t: Target) {
   if (t.type === "space") return (await db.space.findFirst({ where: { id: t.id, householdId }, select: { name: true } }))?.name ?? null
+  if (t.type === "job") return (await db.job.findFirst({ where: { id: t.id, householdId }, select: { title: true } }))?.title ?? null
+  if (t.type === "expense") {
+    const e = await db.expense.findFirst({ where: { id: t.id, householdId }, select: { description: true, vendor: true } })
+    return e ? (e.description ?? e.vendor ?? "Cost") : null
+  }
   if (t.type === "finish") {
     const f = await db.finish.findFirst({ where: { id: t.id, householdId }, select: { colourName: true, colourCode: true, product: true, space: { select: { name: true } } } })
     return f ? `${f.colourName ?? f.colourCode ?? f.product ?? "Finish"} (${f.space.name})` : null
@@ -55,7 +60,7 @@ async function targetName(householdId: string, t: Target) {
 }
 
 function linkData(t: Target) {
-  return t.type === "space" ? { spaceId: t.id } : t.type === "finish" ? { finishId: t.id } : { fixtureId: t.id }
+  return { [`${t.type}Id`]: t.id } as { spaceId?: string; fixtureId?: string; finishId?: string; jobId?: string; expenseId?: string }
 }
 
 /** Files a document to a room, an item or one of its parts. Filing it again just updates the label. */

@@ -31,12 +31,11 @@ export const TABS_RIGHT: NavItem[] = [NAV[5], NAV[6]] // Documents, Settings
 export type AddItem = { href: string; label: string; detail: string; icon: LucideIcon; tone: "a1" | "a2" | "a3" }
 
 // The Add menu: capture comes first because it is the main thing done on a phone.
-// Job and Receipt point at their sections until those get their own add forms.
 export const ADD: AddItem[] = [
   { href: "/capture", label: "Capture", detail: "Photograph a receipt, label or manual", icon: Camera, tone: "a3" },
   { href: "/fixtures?add=1", label: "Item", detail: "An appliance, tap, light or system", icon: Lamp, tone: "a1" },
-  { href: "/jobs", label: "Job", detail: "Work done on the house", icon: Hammer, tone: "a2" },
-  { href: "/capture", label: "Receipt", detail: "Photograph it now, add the cost later", icon: Receipt, tone: "a3" },
+  { href: "/jobs?add=job", label: "Job", detail: "Work done on the house", icon: Hammer, tone: "a2" },
+  { href: "/jobs?add=cost", label: "Receipt", detail: "A cost, with or without a job", icon: Receipt, tone: "a3" },
   { href: "/paint?add=1", label: "Paint or finish", detail: "A colour or surface in a room", icon: Paintbrush, tone: "a1" },
 ]
 

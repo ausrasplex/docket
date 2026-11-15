@@ -10,7 +10,8 @@ const DOC_KIND_IDS = DOC_KINDS.map((k) => k.id)
 
 /**
  * Upload one or more photos or PDFs (multipart field "files").
- * Optional "spaceId", "fixtureId" or "finishId" (+ "label", "kind") files them straight there; otherwise they land in the capture inbox.
+ * Optional "spaceId", "fixtureId", "finishId", "jobId" or "expenseId" (+ "label", "kind") files them straight there;
+ * otherwise they land in the capture inbox.
  */
 export async function POST(req: Request) {
   const session = await getSession()
@@ -26,22 +27,25 @@ export async function POST(req: Request) {
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0)
   if (!files.length) return NextResponse.json({ error: "Choose a photo or PDF." }, { status: 400 })
 
-  // optional: file straight to a room or an item/part
-  const spaceId = String(form.get("spaceId") ?? "") || null
-  const fixtureId = String(form.get("fixtureId") ?? "") || null
-  const finishId = String(form.get("finishId") ?? "") || null
+  // optional: file straight to one record (a room, item/part, finish, job or cost)
   const label = String(form.get("label") ?? "").trim().slice(0, 120) || null
   const kindIn = String(form.get("kind") ?? "")
-  if (spaceId && !(await db.space.findFirst({ where: { id: spaceId, householdId } }))) {
-    return NextResponse.json({ error: "That room no longer exists." }, { status: 400 })
+  const TARGETS = {
+    spaceId: (id: string) => db.space.findFirst({ where: { id, householdId } }),
+    fixtureId: (id: string) => db.fixture.findFirst({ where: { id, householdId } }),
+    finishId: (id: string) => db.finish.findFirst({ where: { id, householdId } }),
+    jobId: (id: string) => db.job.findFirst({ where: { id, householdId } }),
+    expenseId: (id: string) => db.expense.findFirst({ where: { id, householdId } }),
+  } as const
+  let link: ({ label: string | null } & Partial<Record<keyof typeof TARGETS, string>>) | null = null
+  for (const [field, find] of Object.entries(TARGETS) as [keyof typeof TARGETS, (id: string) => Promise<unknown>][]) {
+    const id = String(form.get(field) ?? "")
+    if (!id) continue
+    if (!(await find(id))) return NextResponse.json({ error: "That record no longer exists." }, { status: 400 })
+    link = { [field]: id, label }
+    break
   }
-  if (fixtureId && !(await db.fixture.findFirst({ where: { id: fixtureId, householdId } }))) {
-    return NextResponse.json({ error: "That item no longer exists." }, { status: 400 })
-  }
-  if (finishId && !(await db.finish.findFirst({ where: { id: finishId, householdId } }))) {
-    return NextResponse.json({ error: "That finish no longer exists." }, { status: 400 })
-  }
-  const link = fixtureId ? { fixtureId, label } : finishId ? { finishId, label } : spaceId ? { spaceId, label } : null
+  const fixtureId = link?.fixtureId ?? null
 
   const created: string[] = []
   const errors: string[] = []
@@ -53,7 +57,11 @@ export async function POST(req: Request) {
     }
     try {
       const stored = await storeFile(householdId, Buffer.from(await file.arrayBuffer()), mime)
-      const kind: DocumentKind = (DOC_KIND_IDS as string[]).includes(kindIn) ? (kindIn as DocumentKind) : mime === "application/pdf" ? (fixtureId ? "MANUAL" : "OTHER") : "PHOTO" // a PDF added to an item is most likely its manual
+      const kind: DocumentKind = (DOC_KIND_IDS as string[]).includes(kindIn) ? (kindIn as DocumentKind) : link?.expenseId
+          ? "RECEIPT" // anything attached to a cost is its receipt
+          : mime === "application/pdf"
+            ? fixtureId ? "MANUAL" : "OTHER" // a PDF added to an item is most likely its manual
+            : "PHOTO"
       const doc = await db.document.create({
         data: {
           householdId,

@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ChevronLeft, ChevronRight, FileText, Lamp, Paintbrush, Plus } from "lucide-react"
+import { ChevronLeft, ChevronRight, FileText, Hammer, Lamp, Paintbrush, Plus } from "lucide-react"
 import { cn } from "cn"
 import { PageBody } from "@/components/shell/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +11,8 @@ import { db } from "@/lib/db"
 import { requireHousehold } from "@/lib/dal"
 import { atLeast } from "@/lib/roles"
 import { spaceKind } from "@/lib/spaces"
-import { plural } from "@/lib/format"
+import { date, money, plural } from "@/lib/format"
+import { jobStatus } from "@/lib/jobs"
 import { RoomActions } from "./room-actions"
 import { FinishList } from "@/components/finishes/finish-list"
 import { loadFinishes } from "@/lib/finish-rows"
@@ -54,7 +55,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
   })
   if (!room) notFound()
   const k = spaceKind(room.kind)
-  const [floors, finishes, rooms, brands] = await Promise.all([
+  const [floors, finishes, rooms, brands, jobs] = await Promise.all([
     db.space.findMany({
       where: { householdId: c.householdId, propertyId: room.propertyId, kind: "FLOOR", archivedAt: null },
       select: { id: true, name: true },
@@ -66,6 +67,11 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
       select: { id: true, name: true },
     }),
     db.brand.findMany({ where: { householdId: c.householdId, archivedAt: null }, orderBy: { name: "asc" }, select: { name: true } }),
+    db.job.findMany({
+      where: { householdId: c.householdId, archivedAt: null, spaces: { some: { spaceId: room.id } } },
+      orderBy: [{ finishedAt: { sort: "desc", nulls: "first" } }, { createdAt: "desc" }],
+      select: { id: true, title: true, status: true, finishedAt: true, expenses: { where: { archivedAt: null }, select: { amount: true } } },
+    }),
   ])
   const canEdit = atLeast(c.role, "MEMBER")
 
@@ -176,6 +182,40 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
             </Card>
           </div>
         )}
+
+        {room.kind !== "FLOOR" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Jobs</CardTitle>
+              <CardDescription>Work done in this room, and what it cost.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col">
+              {jobs.length ? (
+                jobs.map((j) => (
+                  <Link key={j.id} href={`/jobs/${j.id}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
+                    <span className="flex size-11 flex-none items-center justify-center rounded-full bg-t2">
+                      <Hammer className="size-5" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-[15px] font-bold">{j.title}</span>
+                      <span className="truncate text-xs text-muted-foreground">{[jobStatus(j.status).label, j.finishedAt ? date(j.finishedAt) : null].filter(Boolean).join(" · ")}</span>
+                    </span>
+                    <span className="text-[15px] font-bold tabular-nums">{money(j.expenses.reduce((a, e) => a + Number(e.amount), 0))}</span>
+                    <ChevronRight className="cardarrow size-5 text-muted-foreground" />
+                  </Link>
+                ))
+              ) : (
+                <Empty icon={<Hammer className="size-5" />} text="No jobs recorded for this room." />
+              )}
+              {canEdit ? (
+                <Link href="/jobs?add=job" className="mt-3 flex min-h-11 items-center gap-2 self-start rounded-full border border-outline px-4 text-sm font-semibold hover:bg-surface2">
+                  <Plus className="size-[18px]" />
+                  Add Job
+                </Link>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader>

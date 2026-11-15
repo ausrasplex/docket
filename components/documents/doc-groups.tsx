@@ -15,17 +15,20 @@ import { AddLinkDrawer } from "@/components/documents/add-link-drawer"
 import { docKind, LINK_ICON } from "@/lib/documents"
 import { PART_ICON } from "@/lib/fixtures"
 import type { DocumentKind } from "@/generated/prisma/enums"
-import { fileTo, setDocumentArchived, unlink, type Target } from "../../documents/actions"
+import { fileTo, setDocumentArchived, unlink, type Target } from "@/app/(app)/documents/actions"
 
 export type DocGroup = {
   target: Target
   name: string
-  isPart: boolean
+  /** "Remove From …" wording in the menu (defaults to Item/Part) */
+  removeLabel?: string
+  /** shows the part icon on the heading */
+  isPart?: boolean
   docs: { linkId: string; label: string | null; doc: DocLike & { notes: string | null } }[]
 }
 export type InboxDoc = { id: string; title: string; kind: DocumentKind; hasThumb: boolean; isLink: boolean; when: string }
 
-/** One section per part (plus the whole item), each with its own documents and ways to add more. */
+/** One section per group (an item and each of its parts, or a job), each with its own documents and ways to add more. */
 export function DocGroups({ groups, inbox, canEdit }: { groups: DocGroup[]; inbox: InboxDoc[]; canEdit: boolean }) {
   const [editing, setEditing] = useState<EditableDoc | null>(null)
   const [linkFor, setLinkFor] = useState<DocGroup | null>(null)
@@ -83,7 +86,7 @@ export function DocGroups({ groups, inbox, canEdit }: { groups: DocGroup[]; inbo
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => act(() => unlink(d.linkId), `Removed from ${g.name}`)}>
                             <Unlink />
-                            Remove From {g.isPart ? "Part" : "Item"}
+                            Remove From {g.removeLabel ?? (g.isPart ? "Part" : "Item")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem variant="destructive" onSelect={() => act(() => setDocumentArchived(d.doc.id, true), "Archived")}>
@@ -128,7 +131,7 @@ function AddButtons({ group, onLink, onInbox, inboxCount }: { group: DocGroup; o
     setBusy(true)
     const fd = new FormData()
     ;[...list].forEach((f) => fd.append("files", f))
-    fd.append("fixtureId", group.target.id)
+    fd.append(`${group.target.type}Id`, group.target.id) // spaceId, fixtureId, finishId, jobId or expenseId
     try {
       const r = await fetch("/api/documents", { method: "POST", body: fd })
       const j = (await r.json().catch(() => ({}))) as { created?: string[]; errors?: string[]; error?: string }
