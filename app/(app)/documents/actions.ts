@@ -40,21 +40,34 @@ export async function updateDocument(id: string, input: DocInput): Promise<Resul
   return { ok: true }
 }
 
-/** Files a document to a room (fixtures, jobs and receipts join this list as they're built). */
-export async function fileToSpace(id: string, spaceId: string, label: string | null): Promise<Result> {
+/** Where a document can be filed. Jobs and receipts join this as they're built. */
+export type Target = { type: "space" | "fixture"; id: string }
+
+/** The target's display name, or null when it isn't in this household. */
+async function targetName(householdId: string, t: Target) {
+  if (t.type === "space") return (await db.space.findFirst({ where: { id: t.id, householdId }, select: { name: true } }))?.name ?? null
+  const f = await db.fixture.findFirst({ where: { id: t.id, householdId }, select: { name: true, parent: { select: { name: true } } } })
+  return f ? (f.parent ? `${f.parent.name} › ${f.name}` : f.name) : null
+}
+
+function linkData(t: Target) {
+  return t.type === "space" ? { spaceId: t.id } : { fixtureId: t.id }
+}
+
+/** Files a document to a room, an item or one of its parts. Filing it again just updates the label. */
+export async function fileTo(id: string, target: Target, label: string | null): Promise<Result> {
   const c = await requireHousehold("MEMBER")
-  const [doc, space] = await Promise.all([
-    ownDoc(c.householdId, id),
-    db.space.findFirst({ where: { id: spaceId, householdId: c.householdId } }),
-  ])
-  if (!doc || !space) return { ok: false, error: "That document or room no longer exists." }
+  const [doc, name] = await Promise.all([ownDoc(c.householdId, id), targetName(c.householdId, target)])
+  if (!doc || !name) return { ok: false, error: "That document or place no longer exists." }
+  const where = target.type === "space" ? { documentId_spaceId: { documentId: id, spaceId: target.id } } : { documentId_fixtureId: { documentId: id, fixtureId: target.id } }
   await db.documentLink.upsert({
-    where: { documentId_spaceId: { documentId: id, spaceId } },
-    create: { documentId: id, spaceId, label: label?.trim() || null },
+    where,
+    create: { documentId: id, ...linkData(target), label: label?.trim() || null },
     update: { label: label?.trim() || null },
   })
-  await logActivity(c, { action: "linked", entityType: "Document", entityId: id, summary: `${c.user.name} filed “${doc.title}” to ${space.name}` })
+  await logActivity(c, { action: "linked", entityType: "Document", entityId: id, summary: `${c.user.name} filed “${doc.title}” to ${name}` })
   refresh()
+  revalidatePath("/fixtures", "layout")
   return { ok: true }
 }
 
@@ -64,6 +77,7 @@ export async function unlink(linkId: string): Promise<Result> {
   if (!l) return { ok: false, error: "That link no longer exists." }
   await db.documentLink.delete({ where: { id: linkId } })
   refresh()
+  revalidatePath("/fixtures", "layout")
   return { ok: true }
 }
 
@@ -78,13 +92,13 @@ export async function setDocumentArchived(id: string, archived: boolean): Promis
 }
 
 /** Saves a web link as a document: an online manual, a support page, a driver download. */
-export async function addWebLink(input: { url: string; title: string; kind: DocumentKind; spaceId: string | null }): Promise<Result<{ id: string }>> {
+export async function addWebLink(input: { url: string; title: string; kind: DocumentKind; target: Target | null; label?: string }): Promise<Result<{ id: string }>> {
   const c = await requireHousehold("MEMBER")
   const url = normaliseUrl(input.url)
   if (!url) return { ok: false, error: "Enter a web address, like daikin.com.au/support." }
   const title = input.title.trim() || new URL(url).hostname.replace(/^www\./, "")
-  if (input.spaceId && !(await db.space.findFirst({ where: { id: input.spaceId, householdId: c.householdId } }))) {
-    return { ok: false, error: "That room no longer exists." }
+  if (input.target && !(await targetName(c.householdId, input.target))) {
+    return { ok: false, error: "That place no longer exists." }
   }
   const doc = await db.document.create({
     data: {
@@ -93,10 +107,11 @@ export async function addWebLink(input: { url: string; title: string; kind: Docu
       title,
       url,
       createdById: c.user.id,
-      ...(input.spaceId ? { links: { create: { spaceId: input.spaceId } } } : {}),
+      ...(input.target ? { links: { create: { ...linkData(input.target), label: input.label?.trim() || null } } } : {}),
     },
   })
   await logActivity(c, { action: "created", entityType: "Document", entityId: doc.id, summary: `${c.user.name} added the link “${title}”` })
   refresh()
+  revalidatePath("/fixtures", "layout")
   return { ok: true, id: doc.id }
 }

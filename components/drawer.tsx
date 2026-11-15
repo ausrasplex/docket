@@ -57,12 +57,15 @@ export function Drawer({
 
 /** A labelled form field in Folio's style (13px bold muted label over a 48px input). */
 export function FieldLabel({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  // the hint sits outside the <label>, so the field's accessible name is just the label
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-[13px] font-bold text-muted-foreground">{label}</span>
-      {children}
+    <div className="flex flex-col gap-1.5">
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[13px] font-bold text-muted-foreground">{label}</span>
+        {children}
+      </label>
       {hint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
-    </label>
+    </div>
   )
 }
 

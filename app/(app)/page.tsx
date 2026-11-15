@@ -81,7 +81,7 @@ async function Home() {
             icon={<Lamp className="size-6" />}
             title="Add Your First Fixture"
             body="An appliance, tap, light or system. Attach its manuals, warranty and the maker's support site."
-            action={{ href: "/capture", label: "Capture a Label" }}
+            action={{ href: "/fixtures?add=1", label: "Add Item" }}
           />
         ) : (
           <EmptyState

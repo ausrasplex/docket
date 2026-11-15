@@ -4,10 +4,13 @@ import { getSession } from "@/lib/dal"
 import { acceptedType, storeFile } from "@/lib/storage"
 import { atLeast } from "@/lib/roles"
 import type { DocumentKind } from "@/generated/prisma/enums"
+import { DOC_KINDS } from "@/lib/documents"
+
+const DOC_KIND_IDS = DOC_KINDS.map((k) => k.id)
 
 /**
  * Upload one or more photos or PDFs (multipart field "files").
- * Optional "spaceId" files them straight to a room; otherwise they land in the capture inbox.
+ * Optional "spaceId" or "fixtureId" (+ "label", "kind") files them straight there; otherwise they land in the capture inbox.
  */
 export async function POST(req: Request) {
   const session = await getSession()
@@ -23,10 +26,18 @@ export async function POST(req: Request) {
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0)
   if (!files.length) return NextResponse.json({ error: "Choose a photo or PDF." }, { status: 400 })
 
+  // optional: file straight to a room or an item/part
   const spaceId = String(form.get("spaceId") ?? "") || null
+  const fixtureId = String(form.get("fixtureId") ?? "") || null
+  const label = String(form.get("label") ?? "").trim().slice(0, 120) || null
+  const kindIn = String(form.get("kind") ?? "")
   if (spaceId && !(await db.space.findFirst({ where: { id: spaceId, householdId } }))) {
     return NextResponse.json({ error: "That room no longer exists." }, { status: 400 })
   }
+  if (fixtureId && !(await db.fixture.findFirst({ where: { id: fixtureId, householdId } }))) {
+    return NextResponse.json({ error: "That item no longer exists." }, { status: 400 })
+  }
+  const link = fixtureId ? { fixtureId, label } : spaceId ? { spaceId, label } : null
 
   const created: string[] = []
   const errors: string[] = []
@@ -38,7 +49,7 @@ export async function POST(req: Request) {
     }
     try {
       const stored = await storeFile(householdId, Buffer.from(await file.arrayBuffer()), mime)
-      const kind: DocumentKind = mime === "application/pdf" ? "OTHER" : "PHOTO"
+      const kind: DocumentKind = (DOC_KIND_IDS as string[]).includes(kindIn) ? (kindIn as DocumentKind) : mime === "application/pdf" ? (fixtureId ? "MANUAL" : "OTHER") : "PHOTO" // a PDF added to an item is most likely its manual
       const doc = await db.document.create({
         data: {
           householdId,
@@ -47,7 +58,7 @@ export async function POST(req: Request) {
           fileName: file.name.slice(0, 200),
           ...stored,
           createdById: session.user.id,
-          ...(spaceId ? { links: { create: { spaceId } } } : {}),
+          ...(link ? { links: { create: link } } : {}),
         },
       })
       created.push(doc.id)

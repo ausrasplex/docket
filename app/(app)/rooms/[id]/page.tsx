@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ChevronLeft, FileText, Lamp, Paintbrush } from "lucide-react"
+import { ChevronLeft, ChevronRight, FileText, Lamp, Paintbrush, Plus } from "lucide-react"
 import { cn } from "cn"
 import { PageBody } from "@/components/shell/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,6 +11,7 @@ import { db } from "@/lib/db"
 import { requireHousehold } from "@/lib/dal"
 import { atLeast } from "@/lib/roles"
 import { spaceKind } from "@/lib/spaces"
+import { plural } from "@/lib/format"
 import { RoomActions } from "./room-actions"
 
 const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
@@ -126,19 +127,31 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
               <CardContent className="flex flex-col">
                 {room.fixtures.length ? (
                   room.fixtures.map((f) => (
-                    <div key={f.id} className="flex items-center gap-3 border-t border-line py-3 first:border-t-0">
+                    <Link key={f.id} href={`/fixtures/${f.id}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
                       <span className="flex size-11 flex-none items-center justify-center rounded-full bg-t1">
                         <Lamp className="size-5" />
                       </span>
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-[15px] font-bold">{f.name}</span>
-                        <span className="truncate text-xs text-muted-foreground">{[f.brand?.name, f.model].filter(Boolean).join(" ") || "No model yet"}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {[[f.brand?.name, f.model].filter(Boolean).join(" ") || "No model yet", f._count.parts ? plural(f._count.parts, "part") : null].filter(Boolean).join(" · ")}
+                        </span>
                       </span>
-                    </div>
+                      <ChevronRight className="cardarrow ml-auto size-5 text-muted-foreground" />
+                    </Link>
                   ))
                 ) : (
-                  <Empty icon={<Lamp className="size-5" />} text="No fixtures yet. Adding fixtures comes in the next build step." />
+                  <Empty icon={<Lamp className="size-5" />} text="No fixtures in this room yet." />
                 )}
+                {canEdit ? (
+                  <Link
+                    href={`/fixtures?add=1&room=${room.id}`}
+                    className="mt-3 flex min-h-11 items-center gap-2 self-start rounded-full border border-outline px-4 text-sm font-semibold hover:bg-surface2"
+                  >
+                    <Plus className="size-[18px]" />
+                    Add Item Here
+                  </Link>
+                ) : null}
               </CardContent>
             </Card>
             <Card>

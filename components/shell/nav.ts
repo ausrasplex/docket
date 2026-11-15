@@ -29,13 +29,14 @@ export const TABS_RIGHT: NavItem[] = [NAV[4], NAV[5]]
 
 export type AddItem = { href: string; label: string; detail: string; icon: LucideIcon; tone: "a1" | "a2" | "a3" }
 
-// The Add menu: capture comes first because it is the main thing done on a phone
+// The Add menu: capture comes first because it is the main thing done on a phone.
+// Job, Receipt and Paint point at their sections until those get their own add forms.
 export const ADD: AddItem[] = [
   { href: "/capture", label: "Capture", detail: "Photograph a receipt, label or manual", icon: Camera, tone: "a3" },
-  { href: "/fixtures/new", label: "Fixture", detail: "An appliance, tap, light or system", icon: Lamp, tone: "a1" },
-  { href: "/jobs/new", label: "Job", detail: "Work done on the house", icon: Hammer, tone: "a2" },
-  { href: "/expenses/new", label: "Receipt", detail: "A cost, with or without a job", icon: Receipt, tone: "a3" },
-  { href: "/finishes/new", label: "Paint or finish", detail: "A colour or surface in a room", icon: Paintbrush, tone: "a1" },
+  { href: "/fixtures?add=1", label: "Item", detail: "An appliance, tap, light or system", icon: Lamp, tone: "a1" },
+  { href: "/jobs", label: "Job", detail: "Work done on the house", icon: Hammer, tone: "a2" },
+  { href: "/capture", label: "Receipt", detail: "Photograph it now, add the cost later", icon: Receipt, tone: "a3" },
+  { href: "/rooms", label: "Paint or finish", detail: "A colour or surface in a room", icon: Paintbrush, tone: "a1" },
 ]
 
 export function isActive(pathname: string, href: string) {

@@ -11,6 +11,7 @@ import { db } from "@/lib/db"
 import { requireHousehold } from "@/lib/dal"
 import { DOC_KINDS } from "@/lib/documents"
 import { atLeast } from "@/lib/roles"
+import { fileTargets } from "@/lib/targets"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { AddLink } from "./add-link"
 
@@ -32,7 +33,7 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
   const c = await requireHousehold()
   const kind = DOC_KINDS.find((k) => k.id === sp.kind)?.id as DocumentKind | undefined
   const base = { householdId: c.householdId, archivedAt: null }
-  const [docs, counts, rooms] = await Promise.all([
+  const [docs, counts, targets] = await Promise.all([
     db.document.findMany({
       where: { ...base, ...(kind ? { kind } : {}) },
       orderBy: { createdAt: "desc" },
@@ -40,16 +41,12 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
       include: {
         links: {
           take: 2,
-          select: { label: true, space: { select: { name: true } }, fixture: { select: { name: true } } },
+          select: { label: true, space: { select: { name: true } }, fixture: { select: { name: true, parent: { select: { name: true } } } } },
         },
       },
     }),
     db.document.groupBy({ by: ["kind"], where: base, _count: true }),
-    db.space.findMany({
-      where: { householdId: c.householdId, propertyId: c.property.id, archivedAt: null, kind: { not: "FLOOR" } },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true },
-    }),
+    fileTargets(c.householdId, c.property.id),
   ])
   const total = counts.reduce((a, x) => a + x._count, 0)
   const chips = DOC_KINDS.filter((k) => counts.some((x) => x.kind === k.id))
@@ -63,7 +60,7 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
             <Chip key={k.id} href={`/documents?kind=${k.id}`} on={kind === k.id} label={`${k.label} · ${counts.find((x) => x.kind === k.id)?._count}`} />
           ))}
         </div>
-        {atLeast(c.role, "MEMBER") ? <AddLink rooms={rooms} /> : null}
+        {atLeast(c.role, "MEMBER") ? <AddLink targets={targets} /> : null}
       </div>
       <p className="text-[13px] font-medium text-muted-foreground">
         {kind ? `Showing ${docs.length} of ${total} documents` : `Showing all documents`}
@@ -72,7 +69,9 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
         <Card>
           <CardContent className="flex flex-col">
             {docs.map((d) => {
-              const where = d.links.map((l) => [l.fixture?.name ?? l.space?.name, l.label].filter(Boolean).join(" › ")).filter(Boolean)
+              const where = d.links
+                .map((l) => [l.fixture ? [l.fixture.parent?.name, l.fixture.name].filter(Boolean).join(" › ") : l.space?.name, l.label].filter(Boolean).join(" · "))
+                .filter(Boolean)
               return <DocumentRow key={d.id} doc={d} label={where.length ? where.join(", ") : "Inbox"} />
             })}
           </CardContent>

@@ -4,7 +4,8 @@ import { useState, useTransition } from "react"
 import { Archive, FileText, FolderInput } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { FileDrawer, type EditableDoc, type FileTarget } from "@/components/documents/file-drawer"
+import { FileDrawer, type EditableDoc } from "@/components/documents/file-drawer"
+import type { TargetOption } from "@/components/documents/target-picker"
 import { docHref, docKind, LINK_ICON } from "@/lib/documents"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { setDocumentArchived } from "../documents/actions"
@@ -24,7 +25,7 @@ export type InboxItem = {
 }
 
 /** Captures not yet filed anywhere, as a grid of previews. Tap one to name and file it. */
-export function Inbox({ items, rooms, canEdit }: { items: InboxItem[]; rooms: FileTarget[]; canEdit: boolean }) {
+export function Inbox({ items, targets, canEdit }: { items: InboxItem[]; targets: TargetOption[]; canEdit: boolean }) {
   const [editing, setEditing] = useState<EditableDoc | null>(null)
   const [, start] = useTransition()
   return (
@@ -86,7 +87,7 @@ export function Inbox({ items, rooms, canEdit }: { items: InboxItem[]; rooms: Fi
           )
         })}
       </div>
-      <FileDrawer doc={editing} rooms={rooms} onOpenChange={(o) => !o && setEditing(null)} />
+      <FileDrawer doc={editing} targets={targets} onOpenChange={(o) => !o && setEditing(null)} />
     </>
   )
 }

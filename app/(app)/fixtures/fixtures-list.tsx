@@ -1,0 +1,116 @@
+"use client"
+
+import { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { ChevronRight, FileText, Plus } from "lucide-react"
+import { cn } from "cn"
+import { Button } from "@/components/ui/button"
+import { category, type WarrantyState } from "@/lib/fixtures"
+import { plural } from "@/lib/format"
+import type { FixtureCategory } from "@/generated/prisma/enums"
+import { BLANK_FIXTURE, FixtureDrawer } from "./fixture-drawer"
+
+export type FixtureCard = {
+  id: string
+  name: string
+  category: FixtureCategory
+  makeModel: string
+  room: string | null
+  roomId: string | null
+  parts: number
+  docs: number
+  warranty: WarrantyState
+}
+
+const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
+const WARRANTY_TONE = { ok: "bg-t3", soon: "bg-t2", expired: "bg-danger-soft text-danger", none: "" } as const
+
+export function FixturesList({
+  items,
+  rooms,
+  brands,
+  canEdit,
+  openAdd,
+  presetRoom,
+}: {
+  items: FixtureCard[]
+  rooms: { id: string; name: string }[]
+  brands: string[]
+  canEdit: boolean
+  openAdd: boolean
+  presetRoom: string | null
+}) {
+  const router = useRouter()
+  const [open, setOpen] = useState(openAdd && canEdit)
+  // the Add menu links here with ?add=1 even when this page is already open: reopen the drawer
+  const [lastAdd, setLastAdd] = useState(openAdd)
+  if (openAdd !== lastAdd) {
+    setLastAdd(openAdd)
+    if (openAdd && canEdit) setOpen(true)
+  }
+  const [initial] = useState(() => ({ ...BLANK_FIXTURE, spaceId: presetRoom }))
+  const onOpenChange = (o: boolean) => {
+    setOpen(o)
+    if (!o && openAdd) router.replace("/fixtures", { scroll: false }) // drop ?add=1 so a refresh doesn't reopen it
+  }
+
+  // grouped by room, in the rooms' own order; items without a room last
+  const groups = [
+    ...rooms.map((r) => ({ id: r.id, name: r.name, list: items.filter((i) => i.roomId === r.id) })),
+    { id: "none", name: "No Room", list: items.filter((i) => !i.roomId) },
+  ].filter((g) => g.list.length)
+
+  return (
+    <>
+      {canEdit ? (
+        <>
+          <Button variant="add" size="icon" aria-label="Add item" className="fixed right-4 bottom-24 z-20 shadow-raised desk:hidden" onClick={() => setOpen(true)}>
+            <Plus />
+          </Button>
+          <div className="hidden justify-end desk:flex">
+            <Button variant="add" onClick={() => setOpen(true)}>
+              <Plus />
+              Add Item
+            </Button>
+          </div>
+        </>
+      ) : null}
+
+      {groups.map((g) => (
+        <section key={g.id} className="flex flex-col gap-3">
+          <h2>{g.name}</h2>
+          <div className="grid grid-cols-1 gap-3 desk:grid-cols-3">
+            {g.list.map((f) => {
+              const c = category(f.category)
+              return (
+                <Link key={f.id} href={`/fixtures/${f.id}`} className="lift group flex flex-col gap-3 rounded-3xl bg-surface p-4">
+                  <div className="flex items-center gap-3">
+                    <span className={cn("flex size-12 flex-none items-center justify-center rounded-2xl text-on-a", TONE[c.tone])}>
+                      <c.icon className="size-6" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-[15px] font-bold">{f.name}</span>
+                      <span className="truncate text-xs font-medium text-muted-foreground">{f.makeModel || c.label}</span>
+                    </span>
+                    <ChevronRight className="cardarrow size-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+                    {f.warranty.tone !== "none" ? <span className={cn("rounded-full px-2.5 py-1", WARRANTY_TONE[f.warranty.tone])}>{f.warranty.text}</span> : null}
+                    {f.parts ? <span className="rounded-full bg-surface2 px-2.5 py-1">{plural(f.parts, "part")}</span> : null}
+                    <span className="flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1">
+                      <FileText className="size-3.5" />
+                      {f.docs}
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      ))}
+
+      <FixtureDrawer open={open} onOpenChange={onOpenChange} initial={initial} rooms={rooms} brands={brands} />
+    </>
+  )
+}
