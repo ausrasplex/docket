@@ -13,6 +13,8 @@ import { atLeast } from "@/lib/roles"
 import { spaceKind } from "@/lib/spaces"
 import { plural } from "@/lib/format"
 import { RoomActions } from "./room-actions"
+import { FinishList } from "@/components/finishes/finish-list"
+import { loadFinishes } from "@/lib/finish-rows"
 
 const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
 
@@ -43,7 +45,6 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
         orderBy: { name: "asc" },
         select: { id: true, name: true, model: true, brand: { select: { name: true } }, _count: { select: { parts: true, links: true } } },
       },
-      finishes: { where: { archivedAt: null }, orderBy: { surface: "asc" }, include: { brand: { select: { name: true } } } },
       links: {
         where: { document: { archivedAt: null } },
         orderBy: { createdAt: "desc" },
@@ -53,10 +54,19 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
   })
   if (!room) notFound()
   const k = spaceKind(room.kind)
-  const floors = await db.space.findMany({
-    where: { householdId: c.householdId, propertyId: room.propertyId, kind: "FLOOR", archivedAt: null },
-    select: { id: true, name: true },
-  })
+  const [floors, finishes, rooms, brands] = await Promise.all([
+    db.space.findMany({
+      where: { householdId: c.householdId, propertyId: room.propertyId, kind: "FLOOR", archivedAt: null },
+      select: { id: true, name: true },
+    }),
+    loadFinishes({ householdId: c.householdId, spaceId: room.id }),
+    db.space.findMany({
+      where: { householdId: c.householdId, propertyId: room.propertyId, archivedAt: null, kind: { not: "FLOOR" } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
+    db.brand.findMany({ where: { householdId: c.householdId, archivedAt: null }, orderBy: { name: "asc" }, select: { name: true } }),
+  ])
   const canEdit = atLeast(c.role, "MEMBER")
 
   return (
@@ -160,19 +170,8 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
                 <CardDescription>Colours and surfaces, with where the leftover tin is.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col">
-                {room.finishes.length ? (
-                  room.finishes.map((f) => (
-                    <div key={f.id} className="flex items-center gap-3 border-t border-line py-3 first:border-t-0">
-                      <span className="size-11 flex-none rounded-full border border-line" style={{ background: f.hex ?? "var(--surface2)" }} />
-                      <span className="flex min-w-0 flex-col">
-                        <span className="truncate text-[15px] font-bold">{f.colourName ?? f.kind}</span>
-                        <span className="truncate text-xs text-muted-foreground">{[f.brand?.name, f.colourCode, f.sheen].filter(Boolean).join(" · ")}</span>
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <Empty icon={<Paintbrush className="size-5" />} text="No paint or finishes yet." />
-                )}
+                {finishes.length ? null : <Empty icon={<Paintbrush className="size-5" />} text="No paint or finishes yet." />}
+                <FinishList rows={finishes} rooms={rooms} brands={brands.map((b) => b.name)} canEdit={canEdit} presetRoom={room.id} />
               </CardContent>
             </Card>
           </div>

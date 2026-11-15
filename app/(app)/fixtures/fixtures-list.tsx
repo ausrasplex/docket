@@ -65,11 +65,8 @@ export function FixturesList({
     <>
       {canEdit ? (
         <>
-          <Button variant="add" size="icon" aria-label="Add item" className="fixed right-4 bottom-24 z-20 shadow-raised desk:hidden" onClick={() => setOpen(true)}>
-            <Plus />
-          </Button>
-          <div className="hidden justify-end desk:flex">
-            <Button variant="add" onClick={() => setOpen(true)}>
+          <div className="flex desk:justify-end">
+            <Button variant="add" className="w-full desk:w-auto" onClick={() => setOpen(true)}>
               <Plus />
               Add Item
             </Button>

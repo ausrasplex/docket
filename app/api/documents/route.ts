@@ -10,7 +10,7 @@ const DOC_KIND_IDS = DOC_KINDS.map((k) => k.id)
 
 /**
  * Upload one or more photos or PDFs (multipart field "files").
- * Optional "spaceId" or "fixtureId" (+ "label", "kind") files them straight there; otherwise they land in the capture inbox.
+ * Optional "spaceId", "fixtureId" or "finishId" (+ "label", "kind") files them straight there; otherwise they land in the capture inbox.
  */
 export async function POST(req: Request) {
   const session = await getSession()
@@ -29,6 +29,7 @@ export async function POST(req: Request) {
   // optional: file straight to a room or an item/part
   const spaceId = String(form.get("spaceId") ?? "") || null
   const fixtureId = String(form.get("fixtureId") ?? "") || null
+  const finishId = String(form.get("finishId") ?? "") || null
   const label = String(form.get("label") ?? "").trim().slice(0, 120) || null
   const kindIn = String(form.get("kind") ?? "")
   if (spaceId && !(await db.space.findFirst({ where: { id: spaceId, householdId } }))) {
@@ -37,7 +38,10 @@ export async function POST(req: Request) {
   if (fixtureId && !(await db.fixture.findFirst({ where: { id: fixtureId, householdId } }))) {
     return NextResponse.json({ error: "That item no longer exists." }, { status: 400 })
   }
-  const link = fixtureId ? { fixtureId, label } : spaceId ? { spaceId, label } : null
+  if (finishId && !(await db.finish.findFirst({ where: { id: finishId, householdId } }))) {
+    return NextResponse.json({ error: "That finish no longer exists." }, { status: 400 })
+  }
+  const link = fixtureId ? { fixtureId, label } : finishId ? { finishId, label } : spaceId ? { spaceId, label } : null
 
   const created: string[] = []
   const errors: string[] = []

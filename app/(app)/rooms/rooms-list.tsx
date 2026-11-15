@@ -34,14 +34,9 @@ export function RoomsList({ rooms, canEdit }: { rooms: RoomCard[]; canEdit: bool
 
   return (
     <>
-      {canEdit ? (
-        <Button variant="add" size="icon" aria-label="Add room" className="fixed right-4 bottom-24 z-20 shadow-raised desk:hidden" onClick={() => setOpen(true)}>
-          <Plus />
-        </Button>
-      ) : null}
-      <div className="hidden justify-end desk:flex">
+      <div className="flex desk:justify-end">
         {canEdit ? (
-          <Button variant="add" onClick={() => setOpen(true)}>
+          <Button variant="add" className="w-full desk:w-auto" onClick={() => setOpen(true)}>
             <Plus />
             Add Room
           </Button>

@@ -41,7 +41,9 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
       include: {
         links: {
           take: 2,
-          select: { label: true, space: { select: { name: true } }, fixture: { select: { name: true, parent: { select: { name: true } } } } },
+          select: { label: true, space: { select: { name: true } }, fixture: { select: { name: true, parent: { select: { name: true } } } },
+            finish: { select: { colourName: true, colourCode: true, product: true, space: { select: { name: true } } } },
+          },
         },
       },
     }),
@@ -70,7 +72,14 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
           <CardContent className="flex flex-col">
             {docs.map((d) => {
               const where = d.links
-                .map((l) => [l.fixture ? [l.fixture.parent?.name, l.fixture.name].filter(Boolean).join(" › ") : l.space?.name, l.label].filter(Boolean).join(" · "))
+                .map((l) => {
+                  const place = l.fixture
+                    ? [l.fixture.parent?.name, l.fixture.name].filter(Boolean).join(" › ")
+                    : l.finish
+                      ? `${l.finish.space.name} › ${l.finish.colourName ?? l.finish.colourCode ?? l.finish.product ?? "Paint"}`
+                      : l.space?.name
+                  return [place, l.label].filter(Boolean).join(" · ")
+                })
                 .filter(Boolean)
               return <DocumentRow key={d.id} doc={d} label={where.length ? where.join(", ") : "Inbox"} />
             })}

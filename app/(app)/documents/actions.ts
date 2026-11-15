@@ -41,17 +41,21 @@ export async function updateDocument(id: string, input: DocInput): Promise<Resul
 }
 
 /** Where a document can be filed. Jobs and receipts join this as they're built. */
-export type Target = { type: "space" | "fixture"; id: string }
+export type Target = { type: "space" | "fixture" | "finish"; id: string }
 
 /** The target's display name, or null when it isn't in this household. */
 async function targetName(householdId: string, t: Target) {
   if (t.type === "space") return (await db.space.findFirst({ where: { id: t.id, householdId }, select: { name: true } }))?.name ?? null
+  if (t.type === "finish") {
+    const f = await db.finish.findFirst({ where: { id: t.id, householdId }, select: { colourName: true, colourCode: true, product: true, space: { select: { name: true } } } })
+    return f ? `${f.colourName ?? f.colourCode ?? f.product ?? "Finish"} (${f.space.name})` : null
+  }
   const f = await db.fixture.findFirst({ where: { id: t.id, householdId }, select: { name: true, parent: { select: { name: true } } } })
   return f ? (f.parent ? `${f.parent.name} › ${f.name}` : f.name) : null
 }
 
 function linkData(t: Target) {
-  return t.type === "space" ? { spaceId: t.id } : { fixtureId: t.id }
+  return t.type === "space" ? { spaceId: t.id } : t.type === "finish" ? { finishId: t.id } : { fixtureId: t.id }
 }
 
 /** Files a document to a room, an item or one of its parts. Filing it again just updates the label. */
@@ -59,12 +63,9 @@ export async function fileTo(id: string, target: Target, label: string | null): 
   const c = await requireHousehold("MEMBER")
   const [doc, name] = await Promise.all([ownDoc(c.householdId, id), targetName(c.householdId, target)])
   if (!doc || !name) return { ok: false, error: "That document or place no longer exists." }
-  const where = target.type === "space" ? { documentId_spaceId: { documentId: id, spaceId: target.id } } : { documentId_fixtureId: { documentId: id, fixtureId: target.id } }
-  await db.documentLink.upsert({
-    where,
-    create: { documentId: id, ...linkData(target), label: label?.trim() || null },
-    update: { label: label?.trim() || null },
-  })
+  const existing = await db.documentLink.findFirst({ where: { documentId: id, ...linkData(target) } })
+  if (existing) await db.documentLink.update({ where: { id: existing.id }, data: { label: label?.trim() || null } })
+  else await db.documentLink.create({ data: { documentId: id, ...linkData(target), label: label?.trim() || null } })
   await logActivity(c, { action: "linked", entityType: "Document", entityId: id, summary: `${c.user.name} filed “${doc.title}” to ${name}` })
   refresh()
   revalidatePath("/fixtures", "layout")
