@@ -13,8 +13,10 @@ import { spaceKind } from "@/lib/spaces"
 import { date, money, plural } from "@/lib/format"
 import { jobStatus } from "@/lib/jobs"
 import { RoomActions } from "./room-actions"
-import { DocMenu } from "@/components/documents/doc-menu"
-import { RoomPhotoButton } from "./room-photo"
+import { CategoryTile, itemPhotoSrc } from "@/components/fixtures/category-tile"
+import { DocActions } from "@/components/documents/doc-actions"
+import { editable } from "@/components/documents/editable"
+import { CoverPhotoButton, type CoverTarget } from "@/components/covers/cover-photo"
 import { RoomTile, roomPhotoSrc } from "@/components/rooms/room-tile"
 import { FinishList } from "@/components/finishes/finish-list"
 import { loadFinishes } from "@/lib/finish-rows"
@@ -47,7 +49,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
       fixtures: {
         where: { archivedAt: null, parentId: null },
         orderBy: { name: "asc" },
-        select: { id: true, slug: true, name: true, model: true, brand: { select: { name: true } }, _count: { select: { parts: true, links: true } } },
+        select: { id: true, name: true, category: true, coverCropKey: true, cover: { select: { id: true, archivedAt: true } }, model: true, brand: { select: { name: true } }, _count: { select: { parts: true, links: true } } },
       },
       links: {
         where: { document: { archivedAt: null } },
@@ -74,14 +76,23 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
     db.job.findMany({
       where: { householdId: c.householdId, archivedAt: null, spaces: { some: { spaceId: room.id } } },
       orderBy: [{ finishedAt: { sort: "desc", nulls: "first" } }, { createdAt: "desc" }],
-      select: { id: true, slug: true, title: true, status: true, finishedAt: true, expenses: { where: { archivedAt: null }, select: { amount: true } } },
+      select: { id: true, title: true, status: true, finishedAt: true, expenses: { where: { archivedAt: null }, select: { amount: true } } },
     }),
   ])
   const canEdit = atLeast(c.role, "MEMBER")
   // an archived photo no longer counts as the room's photo
   const coverId = room.cover && !room.cover.archivedAt ? room.cover.id : null
   const photos = room.links.filter((l) => l.document.thumbnailKey).map((l) => ({ id: l.document.id, title: l.document.title }))
-  const photoRoom = { id: room.id, slug: room.slug, name: room.name, kind: room.kind, coverId, src: roomPhotoSrc(room) }
+  const photoRoom: CoverTarget = {
+    kind: "space",
+    id: room.id,
+    name: room.name,
+    noun: "Room",
+    coverId,
+    src: roomPhotoSrc(room),
+    icon: { type: "space", kind: room.kind },
+    cropHref: `/rooms/${room.slug}/photo`,
+  }
 
   return (
     <>
@@ -108,7 +119,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
         ) : null}
 
         <div className="flex items-center gap-3">
-          {canEdit ? <RoomPhotoButton room={photoRoom} photos={photos} /> : <RoomTile kind={room.kind} src={photoRoom.src} className="size-16" />}
+          {canEdit ? <CoverPhotoButton target={photoRoom} photos={photos} /> : <RoomTile kind={room.kind} src={photoRoom.src} className="size-16" />}
           <div className="flex flex-col">
             <span className="text-sm font-bold">{k.label}</span>
             <span className="text-xs font-medium text-muted-foreground">
@@ -151,10 +162,8 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
               <CardContent className="flex flex-col">
                 {room.fixtures.length ? (
                   room.fixtures.map((f) => (
-                    <Link key={f.id} href={`/fixtures/${f.slug}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
-                      <span className="flex size-11 flex-none items-center justify-center rounded-full bg-t1">
-                        <Lamp className="size-5" />
-                      </span>
+                    <Link key={f.id} href={`/fixtures/${f.id}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
+                      <CategoryTile value={f.category} src={itemPhotoSrc(f)} className="size-11" />
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-[15px] font-bold">{f.name}</span>
                         <span className="truncate text-xs text-muted-foreground">
@@ -200,7 +209,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
             <CardContent className="flex flex-col">
               {jobs.length ? (
                 jobs.map((j) => (
-                  <Link key={j.id} href={`/jobs/${j.slug}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
+                  <Link key={j.id} href={`/jobs/${j.id}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
                     <span className="flex size-11 flex-none items-center justify-center rounded-full bg-t2">
                       <Hammer className="size-5" />
                     </span>
@@ -237,7 +246,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
                   key={l.id}
                   doc={l.document}
                   label={l.label}
-                  trailing={canEdit ? <DocMenu doc={{ id: l.document.id, title: l.document.title, isLink: !!l.document.url }} /> : null}
+                  trailing={canEdit ? <DocActions doc={editable(l.document)} /> : null}
                 />
               ))
             ) : (

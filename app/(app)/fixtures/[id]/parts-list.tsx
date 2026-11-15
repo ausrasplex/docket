@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Archive, ExternalLink, FileText, MoreHorizontal, Pencil, Plus } from "lucide-react"
+import { Archive, Camera, ExternalLink, FileText, MoreHorizontal, Pencil, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { PART_ICON, type WarrantyState } from "@/lib/fixtures"
+import type { WarrantyState } from "@/lib/fixtures"
+import { CoverTile } from "@/components/covers/cover-tile"
+import { CoverPhotoDrawer, type CoverPhoto, type CoverTarget } from "@/components/covers/cover-photo"
 import { BLANK_FIXTURE, FixtureDrawer } from "../fixture-drawer"
 import { setFixtureArchived, type FixtureInput } from "../actions"
 
@@ -20,6 +22,8 @@ export type PartRow = {
   support: string | null
   docs: number
   input: FixtureInput
+  photo: CoverTarget
+  photos: CoverPhoto[]
 }
 
 const WARRANTY_TONE = { ok: "bg-t3", soon: "bg-t2", expired: "bg-danger-soft text-danger", none: "" } as const
@@ -39,6 +43,8 @@ export function PartsList({
 }) {
   const [editing, setEditing] = useState<PartRow | null>(null)
   const [adding, setAdding] = useState(false)
+  const [photoFor, setPhotoFor] = useState<string | null>(null)
+  const photoPart = parts.find((x) => x.id === photoFor) ?? null
   const [, start] = useTransition()
   return (
     <div className="flex flex-col gap-3">
@@ -46,9 +52,7 @@ export function PartsList({
         <ul className="flex flex-col">
           {parts.map((p) => (
             <li key={p.id} id={`part-${p.id}`} className="flex scroll-mt-24 items-start gap-3 border-t border-line py-3 first:border-t-0">
-              <span className="flex size-10 flex-none items-center justify-center rounded-full bg-t1">
-                <PART_ICON className="size-5" />
-              </span>
+              <CoverTile icon={{ type: "part" }} src={p.photo.src} className="size-10 rounded-xl" />
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="text-[15px] font-bold">{p.name}</span>
                 <span className="text-xs font-medium text-muted-foreground">
@@ -80,6 +84,10 @@ export function PartsList({
                       <Pencil />
                       Edit Part
                     </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setPhotoFor(p.id)}>
+                      <Camera />
+                      Part Photo
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
@@ -110,6 +118,9 @@ export function PartsList({
           <Plus />
           Add Part
         </Button>
+      ) : null}
+      {photoPart ? (
+        <CoverPhotoDrawer open onOpenChange={(o) => !o && setPhotoFor(null)} target={photoPart.photo} photos={photoPart.photos} />
       ) : null}
       <FixtureDrawer
         open={!!editing}

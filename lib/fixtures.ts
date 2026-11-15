@@ -1,5 +1,6 @@
 import {
   AirVent,
+  Car,
   Cable,
   Cpu,
   Droplets,
@@ -33,6 +34,7 @@ export const CATEGORIES: { id: FixtureCategory; label: string; icon: LucideIcon;
   { id: "WINDOW_COVERING", label: "Blinds & Curtains", icon: Blinds, tone: "a3" },
   { id: "JOINERY", label: "Joinery", icon: Sofa, tone: "a1" },
   { id: "OUTDOOR", label: "Outdoor", icon: Trees, tone: "a2" },
+  { id: "VEHICLE", label: "Vehicle", icon: Car, tone: "a3" },
   { id: "OTHER", label: "Other", icon: Package, tone: "a3" },
 ]
 

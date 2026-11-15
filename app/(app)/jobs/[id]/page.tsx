@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { notFound, redirect } from "next/navigation"
+import { notFound } from "next/navigation"
 import { ChevronLeft, Hammer } from "lucide-react"
 import { cn } from "cn"
 import { PageBody } from "@/components/shell/page-header"
@@ -17,7 +17,6 @@ import { expenseClass, jobStatus } from "@/lib/jobs"
 import { isoDay } from "@/lib/parse"
 import { atLeast } from "@/lib/roles"
 import { AddJobCost, JobMenu } from "./job-client"
-import { bySlugOrId } from "@/lib/slug"
 
 export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
   return (
@@ -34,17 +33,16 @@ export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
 }
 
 async function Job({ params }: { params: PageProps<"/jobs/[id]">["params"] }) {
-  const { id: param } = await params // the job's slug (or its id, from old links)
+  const { id } = await params // jobs are addressed by their id
   const c = await requireHousehold()
   const job = await db.job.findFirst({
-    where: bySlugOrId(c.householdId, param),
+    where: { id, householdId: c.householdId },
     include: {
       spaces: { include: { space: { select: { id: true, name: true, slug: true } } } },
       links: { where: { document: { archivedAt: null } }, orderBy: { createdAt: "asc" }, include: { document: true } },
     },
   })
   if (!job) notFound()
-  if (param !== job.slug) redirect(`/jobs/${job.slug}`)
 
   const [costs, contacts, rooms, inbox] = await Promise.all([
     loadExpenses({ householdId: c.householdId, jobId: job.id }),
@@ -78,7 +76,6 @@ async function Job({ params }: { params: PageProps<"/jobs/[id]">["params"] }) {
           {canEdit ? (
             <JobMenu
               id={job.id}
-              slug={job.slug}
               title={job.title}
               archived={!!job.archivedAt}
               rooms={rooms}

@@ -112,19 +112,21 @@ model Household {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships Membership[]
-  invites     Invite[]
-  properties  Property[]
-  spaces      Space[]
-  fixtures    Fixture[]
-  finishes    Finish[]
-  contacts    Contact[]
-  brands      Brand[]
-  jobs        Job[]
-  expenses    Expense[]
-  documents   Document[]
-  tags        Tag[]
-  activity    Activity[]
+  memberships    Membership[]
+  invites        Invite[]
+  properties     Property[]
+  spaces         Space[]
+  fixtures       Fixture[]
+  finishes       Finish[]
+  contacts       Contact[]
+  brands         Brand[]
+  jobs           Job[]
+  expenses       Expense[]
+  documents      Document[]
+  tags           Tag[]
+  activity       Activity[]
+  servicePlans   ServicePlan[]
+  serviceRecords ServiceRecord[]
 }
 
 model Membership {
@@ -262,6 +264,7 @@ enum FixtureCategory {
   WINDOW_COVERING
   JOINERY
   OUTDOOR
+  VEHICLE
   OTHER
 }
 
@@ -286,8 +289,6 @@ model Fixture {
   sortOrder   Int       @default(0) // order of parts within an item
 
   name     String // "Ducted air conditioner", or for a part: "Outdoor unit"
-  /// the readable part of its address: /fixtures/ducted-air-conditioner (parts get one too; it opens their item)
-  slug     String
   category FixtureCategory @default(OTHER)
   brandId  String?
   brand    Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
@@ -296,6 +297,18 @@ model Fixture {
 
   // this exact product on the maker's website; the item page falls back to the brand's support site
   productUrl String?
+
+  /// a photo shown in place of the category icon (like a room's photo), with its square crop and cropped copy
+  coverId      String?
+  cover        Document? @relation("FixtureCover", fields: [coverId], references: [id], onDelete: SetNull)
+  coverCrop    Json?
+  coverCropKey String?
+
+  // vehicles (category VEHICLE)
+  registration          String? // rego plate
+  vin                   String?
+  registrationExpiresAt DateTime? @db.Date
+  odometer              Int? // km, the latest reading (raised by service records)
 
   purchasedAt       DateTime? @db.Date
   installedAt       DateTime? @db.Date
@@ -315,10 +328,11 @@ model Fixture {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  links DocumentLink[]
-  tags  Tag[]
+  links          DocumentLink[]
+  tags           Tag[]
+  servicePlans   ServicePlan[]
+  serviceRecords ServiceRecord[]
 
-  @@unique([householdId, slug])
   @@index([householdId])
   @@index([spaceId])
   @@index([parentId])
@@ -412,6 +426,51 @@ model Finish {
 
 // ───────────────────────── Work and money ─────────────────────────
 
+/// A routine for an item: "Logbook service every 12 months or 15,000 km", "Air-con service every 12 months".
+/// When it's next due comes from the latest service record that covered it.
+model ServicePlan {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  fixtureId   String
+  fixture     Fixture   @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  name        String
+  everyMonths Int?
+  everyKm     Int?
+  notes       String?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  records ServiceRecord[]
+
+  @@index([fixtureId])
+}
+
+/// One service done to an item: when, at what odometer reading, what was done and by whom, which plans it
+/// covered, and its cost (an Expense, with the receipt attached there, so it counts in the yearly totals).
+model ServiceRecord {
+  id          String        @id @default(cuid())
+  householdId String
+  household   Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  fixtureId   String
+  fixture     Fixture       @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  date        DateTime      @db.Date
+  odometer    Int? // km
+  title       String // "12-month logbook service"
+  notes       String?
+  contactId   String?
+  contact     Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  expenseId   String?       @unique
+  expense     Expense?      @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  plans       ServicePlan[]
+  createdById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([fixtureId, date])
+}
+
 model Contact {
   id          String    @id @default(cuid())
   householdId String
@@ -432,6 +491,7 @@ model Contact {
   jobs      Job[]
   expenses  Expense[]
   installed Fixture[]
+  services  ServiceRecord[]
   links     DocumentLink[]
 
   @@index([householdId])
@@ -453,8 +513,6 @@ model Job {
   propertyId   String
   property     Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   title        String
-  /// the readable part of its address: /jobs/bathroom-renovation (unique in the household)
-  slug         String
   description  String?
   status       JobStatus @default(DONE)
   startedAt    DateTime? @db.Date
@@ -475,7 +533,6 @@ model Job {
   links    DocumentLink[]
   tags     Tag[]
 
-  @@unique([householdId, slug])
   @@index([householdId])
 }
 
@@ -519,7 +576,8 @@ model Expense {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  links DocumentLink[]
+  links   DocumentLink[]
+  service ServiceRecord?
 
   @@index([householdId, date])
   @@index([jobId])
@@ -580,9 +638,10 @@ model Document {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  links   DocumentLink[]
-  tags    Tag[]
-  coverOf Space[]        @relation("SpaceCover")
+  links           DocumentLink[]
+  tags            Tag[]
+  coverOf         Space[]        @relation("SpaceCover")
+  coverOfFixtures Fixture[]      @relation("FixtureCover")
 
   @@index([householdId, kind])
   @@index([householdId, sha256])

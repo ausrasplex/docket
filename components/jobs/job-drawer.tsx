@@ -29,7 +29,6 @@ export function JobDrawer({
   onOpenChange,
   initial,
   editingId,
-  editingSlug,
   rooms,
   contacts,
 }: {
@@ -37,8 +36,6 @@ export function JobDrawer({
   onOpenChange: (o: boolean) => void
   initial: JobInput
   editingId?: string
-  /** the job's current address, to follow it when a rename changes it */
-  editingSlug?: string
   rooms: { id: string; name: string }[]
   contacts: ContactLite[]
 }) {
@@ -59,8 +56,7 @@ export function JobDrawer({
       if (!r.ok) return void toast.error(r.error)
       toast(editingId ? "Saved" : "Job added")
       onOpenChange(false)
-      if (!editingId && "slug" in r) router.push(`/jobs/${r.slug}`)
-      else if (editingId && editingSlug && "slug" in r && r.slug !== editingSlug) router.replace(`/jobs/${r.slug}`)
+      if (!editingId && "id" in r) router.push(`/jobs/${r.id}`)
     })
 
   return (

@@ -1,31 +1,39 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Archive, ArchiveRestore, MoreHorizontal, Pencil, Plus } from "lucide-react"
+import { Archive, ArchiveRestore, Camera, Copy, MoreHorizontal, Pencil, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { BLANK_FIXTURE, FixtureDrawer } from "../fixture-drawer"
+import { CoverPhotoDrawer, type CoverPhoto, type CoverTarget } from "@/components/covers/cover-photo"
 import { setFixtureArchived, type FixtureInput } from "../actions"
+import { DuplicateDialog } from "./duplicate-dialog"
 
 export function FixtureMenu({
   id,
-  slug,
   name,
   archived,
   initial,
   rooms,
   brands,
+  photo,
+  photos,
+  parts,
 }: {
   id: string
-  slug: string
   name: string
   archived: boolean
   initial: FixtureInput
   rooms: { id: string; name: string }[]
   brands: string[]
+  photo: CoverTarget
+  photos: CoverPhoto[]
+  parts: { id: string; name: string }[]
 }) {
   const [edit, setEdit] = useState(false)
+  const [duplicate, setDuplicate] = useState(false)
+  const [photoOpen, setPhotoOpen] = useState(false)
   const [addPart, setAddPart] = useState(false)
   const [, start] = useTransition()
   return (
@@ -45,6 +53,14 @@ export function FixtureMenu({
             <Plus />
             Add Part
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setPhotoOpen(true)}>
+            <Camera />
+            Item Photo
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setDuplicate(true)}>
+            <Copy />
+            Duplicate
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant={archived ? "default" : "destructive"}
@@ -61,7 +77,9 @@ export function FixtureMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <FixtureDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} editingSlug={slug} rooms={rooms} brands={brands} />
+      <CoverPhotoDrawer open={photoOpen} onOpenChange={setPhotoOpen} target={photo} photos={photos} />
+      <DuplicateDialog open={duplicate} onOpenChange={setDuplicate} id={id} name={name} roomId={initial.spaceId} rooms={rooms} parts={parts} />
+      <FixtureDrawer open={edit}onOpenChange={setEdit} initial={initial} editingId={id} rooms={rooms} brands={brands} />
       <FixtureDrawer
         open={addPart}
         onOpenChange={setAddPart}

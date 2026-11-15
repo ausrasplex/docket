@@ -10,10 +10,14 @@ import { category, type WarrantyState } from "@/lib/fixtures"
 import { plural } from "@/lib/format"
 import type { FixtureCategory } from "@/generated/prisma/enums"
 import { BLANK_FIXTURE, FixtureDrawer } from "./fixture-drawer"
+import { CategoryTile } from "@/components/fixtures/category-tile"
+import { DUE_TONE } from "@/lib/service"
 
 export type FixtureCard = {
   id: string
-  slug: string
+  photo: string | null
+  /** a service or rego that's due soon or overdue */
+  due: { tone: "soon" | "overdue"; text: string } | null
   name: string
   category: FixtureCategory
   makeModel: string
@@ -24,7 +28,6 @@ export type FixtureCard = {
   warranty: WarrantyState
 }
 
-const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
 const WARRANTY_TONE = { ok: "bg-t3", soon: "bg-t2", expired: "bg-danger-soft text-danger", none: "" } as const
 
 export function FixturesList({
@@ -82,11 +85,9 @@ export function FixturesList({
             {g.list.map((f) => {
               const c = category(f.category)
               return (
-                <Link key={f.id} href={`/fixtures/${f.slug}`} className="lift group flex flex-col gap-3 rounded-3xl bg-surface p-4">
+                <Link key={f.id} href={`/fixtures/${f.id}`} className="lift group flex flex-col gap-3 rounded-3xl bg-surface p-4">
                   <div className="flex items-center gap-3">
-                    <span className={cn("flex size-12 flex-none items-center justify-center rounded-2xl text-on-a", TONE[c.tone])}>
-                      <c.icon className="size-6" />
-                    </span>
+                    <CategoryTile value={f.category} src={f.photo} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-[15px] font-bold">{f.name}</span>
                       <span className="truncate text-xs font-medium text-muted-foreground">{f.makeModel || c.label}</span>
@@ -94,6 +95,7 @@ export function FixturesList({
                     <ChevronRight className="cardarrow size-5 text-muted-foreground" />
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+                    {f.due ? <span className={cn("rounded-full px-2.5 py-1", DUE_TONE[f.due.tone])}>{f.due.text}</span> : null}
                     {f.warranty.tone !== "none" ? <span className={cn("rounded-full px-2.5 py-1", WARRANTY_TONE[f.warranty.tone])}>{f.warranty.text}</span> : null}
                     {f.parts ? <span className="rounded-full bg-surface2 px-2.5 py-1">{plural(f.parts, "part")}</span> : null}
                     <span className="flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1">

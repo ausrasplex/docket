@@ -8,6 +8,8 @@ import { requireHousehold } from "@/lib/dal"
 import { warranty } from "@/lib/fixtures"
 import { atLeast } from "@/lib/roles"
 import { FixturesList } from "./fixtures-list"
+import { comingUp } from "@/lib/coming-up"
+import { itemPhotoSrc } from "@/components/fixtures/category-tile"
 
 export const metadata = { title: "Fixtures · Docket" }
 
@@ -28,13 +30,14 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
   const sp = await searchParams
   const c = await requireHousehold()
   const now = new Date()
-  const [items, rooms, brands] = await Promise.all([
+  const [items, rooms, brands, upcoming] = await Promise.all([
     db.fixture.findMany({
       where: { householdId: c.householdId, propertyId: c.property.id, archivedAt: null, parentId: null },
       orderBy: { name: "asc" },
       include: {
         brand: { select: { name: true } },
         space: { select: { id: true, name: true } },
+        cover: { select: { id: true, archivedAt: true } },
         parts: { where: { archivedAt: null }, select: { warrantyExpiresAt: true, _count: { select: { links: true } } } },
         _count: { select: { links: true } },
       },
@@ -45,7 +48,14 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
       select: { id: true, name: true },
     }),
     db.brand.findMany({ where: { householdId: c.householdId, archivedAt: null }, orderBy: { name: "asc" }, select: { name: true } }),
+    comingUp(c.householdId, c.property.id, now),
   ])
+  // the most urgent thing per item (services, rego), shown as a chip (warranties have their own)
+  const dueByItem = new Map<string, { tone: "soon" | "overdue"; text: string }>()
+  for (const u of upcoming) {
+    if (u.what === "Warranty" || dueByItem.has(u.itemId)) continue
+    dueByItem.set(u.itemId, { tone: u.due.tone as "soon" | "overdue", text: `${u.what}: ${u.due.text}` })
+  }
   const canEdit = atLeast(c.role, "MEMBER")
   const presetRoom = typeof sp.room === "string" && rooms.some((r) => r.id === sp.room) ? sp.room : null
 
@@ -63,7 +73,8 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
           const soonest = ends.sort((a, b) => a.getTime() - b.getTime())[0] ?? f.warrantyExpiresAt
           return {
             id: f.id,
-            slug: f.slug,
+            photo: itemPhotoSrc(f),
+            due: dueByItem.get(f.id) ?? null,
             name: f.name,
             category: f.category,
             makeModel: [f.brand?.name, f.model].filter(Boolean).join(" "),

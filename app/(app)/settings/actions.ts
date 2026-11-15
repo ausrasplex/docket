@@ -1,6 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { headers } from "next/headers"
+import { isAPIError } from "better-auth/api"
+import { verifyPassword } from "better-auth/crypto"
+import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { logActivity, requireHousehold, requireUser } from "@/lib/dal"
 import { baseUrl } from "@/lib/base-url"
@@ -110,6 +114,39 @@ export async function updateProfile(name: string): Promise<Result> {
   if (!n) return { ok: false, error: "Add your name." }
   await db.user.update({ where: { id: user.id }, data: { name: n } })
   revalidatePath("/", "layout")
+  return { ok: true }
+}
+
+/** Checks the signed-in person's current password (asked before changing their email or password). */
+async function passwordOk(userId: string, password: string) {
+  const account = await db.account.findFirst({ where: { userId, providerId: "credential" }, select: { password: true } })
+  return !!account?.password && (await verifyPassword({ hash: account.password, password }))
+}
+
+/** Changes the email you sign in with. Docket sends no email, so it just needs to be unused and your password. */
+export async function changeEmail(newEmail: string, currentPassword: string): Promise<Result> {
+  const user = await requireUser()
+  const email = newEmail.trim().toLowerCase()
+  if (!/^\S+@\S+\.\S+$/.test(email)) return { ok: false, error: "Enter an email address to sign in with." }
+  if (email === user.email) return { ok: false, error: "That's already your email." }
+  if (!(await passwordOk(user.id, currentPassword))) return { ok: false, error: "Your current password isn't right." }
+  if (await db.user.findUnique({ where: { email } })) return { ok: false, error: "Someone already signs in with that email." }
+  await db.user.update({ where: { id: user.id }, data: { email, emailVerified: false } })
+  revalidatePath("/", "layout")
+  return { ok: true }
+}
+
+/** Changes your password. Signing out your other devices is on by default (a lost phone stays signed out). */
+export async function changePassword(currentPassword: string, newPassword: string, signOutOthers: boolean): Promise<Result> {
+  await requireUser()
+  if (newPassword.length < 10) return { ok: false, error: "Use at least 10 characters for the new password." }
+  if (newPassword === currentPassword) return { ok: false, error: "Choose a password different from the current one." }
+  try {
+    await auth.api.changePassword({ body: { currentPassword, newPassword, revokeOtherSessions: signOutOthers }, headers: await headers() })
+  } catch (e) {
+    if (isAPIError(e) && (e.status === "BAD_REQUEST" || e.status === "UNAUTHORIZED")) return { ok: false, error: "Your current password isn't right." }
+    return { ok: false, error: "That didn't work. Try again." }
+  }
   return { ok: true }
 }
 

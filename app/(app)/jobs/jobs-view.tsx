@@ -19,7 +19,6 @@ import type { JobStatus } from "@/generated/prisma/enums"
 
 export type JobCard = {
   id: string
-  slug: string
   title: string
   status: JobStatus
   when: string
@@ -83,7 +82,7 @@ export function JobsView({
             {jobs.map((j) => {
               const s = jobStatus(j.status)
               return (
-                <Link key={j.id} href={`/jobs/${j.slug}`} className="lift group flex flex-col gap-2.5 rounded-3xl bg-surface p-4">
+                <Link key={j.id} href={`/jobs/${j.id}`} className="lift group flex flex-col gap-2.5 rounded-3xl bg-surface p-4">
                   <div className="flex items-start gap-3">
                     <span className="flex size-12 flex-none items-center justify-center rounded-2xl bg-a2 text-on-a">
                       <Hammer className="size-6" />

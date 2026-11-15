@@ -14,7 +14,8 @@ import { atLeast } from "@/lib/roles"
 import { fileTargets } from "@/lib/targets"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { AddLink } from "./add-link"
-import { DocMenu } from "@/components/documents/doc-menu"
+import { DocActions } from "@/components/documents/doc-actions"
+import { editable } from "@/components/documents/editable"
 
 export default function DocumentsPage({ searchParams }: PageProps<"/documents">) {
   return (
@@ -94,7 +95,7 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
                   key={d.id}
                   doc={d}
                   label={where.length ? where.join(", ") : "Inbox"}
-                  trailing={canEdit ? <DocMenu doc={{ id: d.id, title: d.title, isLink: !!d.url }} /> : null}
+                  trailing={canEdit ? <DocActions doc={editable(d)} targets={targets} /> : null}
                 />
               )
             })}

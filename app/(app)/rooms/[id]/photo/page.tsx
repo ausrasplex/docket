@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { db } from "@/lib/db"
 import { requireHousehold } from "@/lib/dal"
 import { validCrop } from "@/lib/crop"
-import { CropEditor } from "./crop-editor"
+import { CropEditor } from "@/components/covers/crop-editor"
 import { bySlugOrId } from "@/lib/slug"
 
 export const metadata = { title: "Adjust Photo · Docket" }
@@ -51,7 +51,7 @@ async function Body({ params }: { params: PageProps<"/rooms/[id]/photo">["params
       </div>
       <PageBody>
         <p className="-mt-1 text-sm text-muted-foreground">Move and zoom the photo so the square shows the part of {room.name} you want.</p>
-        <CropEditor roomId={room.id} roomSlug={room.slug} roomName={room.name} imageUrl={`/api/files/${room.cover.id}?v=thumb`} initial={validCrop(room.coverCrop)} />
+        <CropEditor kind="space" id={room.id} name={room.name} backHref={`/rooms/${room.slug}`} imageUrl={`/api/files/${room.cover.id}?v=thumb`} initial={validCrop(room.coverCrop)} />
       </PageBody>
     </>
   )

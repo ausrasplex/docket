@@ -29,6 +29,10 @@ export const BLANK_FIXTURE: FixtureInput = {
   replacementValue: "",
   includedInSale: true,
   notes: "",
+  registration: "",
+  vin: "",
+  registrationExpiresAt: null,
+  odometer: "",
 }
 
 /**
@@ -40,7 +44,6 @@ export function FixtureDrawer({
   onOpenChange,
   initial,
   editingId,
-  editingSlug,
   parent,
   rooms,
   brands,
@@ -49,8 +52,6 @@ export function FixtureDrawer({
   onOpenChange: (o: boolean) => void
   initial: FixtureInput
   editingId?: string
-  /** the item's current address, to follow it when a rename changes it */
-  editingSlug?: string
   parent?: { id: string; name: string }
   rooms: { id: string; name: string }[]
   brands: string[]
@@ -73,8 +74,7 @@ export function FixtureDrawer({
       if (!r.ok) return void toast.error(r.error)
       toast(editingId ? "Saved" : `${v.name.trim()} added`)
       onOpenChange(false)
-      if (!editingId && !isPart && "slug" in r) router.push(`/fixtures/${r.slug}`)
-      else if (editingId && !isPart && editingSlug && "slug" in r && r.slug !== editingSlug) router.replace(`/fixtures/${r.slug}`)
+      if (!editingId && !isPart && "id" in r) router.push(`/fixtures/${r.id}`)
     })
 
   /** Warranty end from the purchase (or install) date plus N years. */
@@ -175,6 +175,26 @@ export function FixtureDrawer({
           </Button>
         ))}
       </div>
+
+      {v.category === "VEHICLE" && !isPart ? (
+        <>
+          <Section title="Vehicle" />
+          <div className="grid grid-cols-2 gap-3">
+            <FieldLabel label="Registration">
+              <Input value={v.registration} onChange={(e) => set("registration", e.target.value)} placeholder="ABC123" autoCapitalize="characters" />
+            </FieldLabel>
+            <FieldLabel label="Rego Expires">
+              <Input type="date" value={v.registrationExpiresAt ?? ""} onChange={(e) => set("registrationExpiresAt", e.target.value || null)} />
+            </FieldLabel>
+          </div>
+          <FieldLabel label="VIN">
+            <Input value={v.vin} onChange={(e) => set("vin", e.target.value)} autoCapitalize="characters" className="font-mono" />
+          </FieldLabel>
+          <FieldLabel label="Odometer (km)" hint="Updated automatically when you log a service with a reading.">
+            <Input value={v.odometer} onChange={(e) => set("odometer", e.target.value)} inputMode="numeric" placeholder="84250" />
+          </FieldLabel>
+        </>
+      ) : null}
 
       <Section title="Value" hint="Used by the insurance and sale exports." />
       <div className="grid grid-cols-2 gap-3">

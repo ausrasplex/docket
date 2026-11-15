@@ -1,6 +1,9 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { ChevronRight, DoorOpen, Inbox, Lamp, Receipt } from "lucide-react"
+import { Car, ChevronRight, DoorOpen, Inbox, Lamp, Receipt, ShieldCheck, Wrench } from "lucide-react"
+import { cn } from "cn"
+import { comingUp } from "@/lib/coming-up"
+import { DUE_TONE } from "@/lib/service"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
 import { Hero, StatCard } from "@/components/shell/hero"
 import { EmptyState } from "@/components/shell/empty-state"
@@ -32,13 +35,14 @@ async function Home() {
   const soon = new Date(now.getTime() + 90 * 24 * 3600 * 1000)
   const h = { householdId: c.householdId }
 
-  const [rooms, fixtures, expiring, spent, inbox, activity] = await Promise.all([
+  const [rooms, fixtures, expiring, spent, inbox, activity, upcoming] = await Promise.all([
     db.space.count({ where: { ...h, propertyId: c.property.id, archivedAt: null, kind: { not: "FLOOR" } } }),
     db.fixture.count({ where: { ...h, propertyId: c.property.id, archivedAt: null, parentId: null } }),
     db.fixture.count({ where: { ...h, archivedAt: null, warrantyExpiresAt: { gte: now, lte: soon } } }),
     db.expense.aggregate({ where: { ...h, archivedAt: null, date: { gte: fy.start, lte: fy.end } }, _sum: { amount: true } }),
     db.document.count({ where: { ...h, archivedAt: null, links: { none: {} } } }),
     db.activity.findMany({ where: h, orderBy: { createdAt: "desc" }, take: 6, include: { user: { select: { name: true } } } }),
+    comingUp(c.householdId, c.property.id, now),
   ])
 
   return (
@@ -55,6 +59,29 @@ async function Home() {
           <span className="flex-1 text-[15px] font-bold">{plural(inbox, "capture")} to file</span>
           <ChevronRight className="cardarrow size-5" />
         </Link>
+      ) : null}
+
+      {upcoming.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Coming Up</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col">
+            {upcoming.slice(0, 8).map((u) => (
+              <Link key={u.fixtureId + u.what} href={`/fixtures/${u.itemId}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
+                <span className={cn("flex size-10 flex-none items-center justify-center rounded-full", u.due.tone === "overdue" ? "bg-danger-soft text-danger" : "bg-t2")}>
+                  {u.what === "Warranty" ? <ShieldCheck className="size-5" /> : u.what === "Registration" ? <Car className="size-5" /> : <Wrench className="size-5" />}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[15px] font-bold">{u.what}</span>
+                  <span className="truncate text-xs font-medium text-muted-foreground">{u.item}</span>
+                </span>
+                <span className={cn("flex-none rounded-full px-2.5 py-1 text-xs font-semibold", DUE_TONE[u.due.tone])}>{u.due.text}</span>
+                <ChevronRight className="cardarrow size-5 flex-none text-muted-foreground" />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
       ) : null}
 
       <div className="grid grid-cols-1 gap-5 desk:grid-cols-2">

@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import type { Crop } from "@/lib/crop"
-import { saveSpaceCrop } from "../../actions"
+import { saveCoverCrop } from "@/app/(app)/covers/actions"
 
 const MAX_ZOOM = 4
 
@@ -15,21 +15,23 @@ const MAX_ZOOM = 4
 type View = { cx: number; cy: number; z: number }
 
 /**
- * The crop screen for a room photo: a square frame the photo is dragged and zoomed inside (mouse, touch,
+ * The crop screen for a room's or item's photo: a square frame the photo is dragged and zoomed inside (mouse, touch,
  * pinch, wheel or keyboard), with previews of the room's tile at its real sizes. Saving sends the crop as
  * fractions of the photo; the server cuts a sharp copy from the full-size original.
  */
 export function CropEditor({
-  roomId,
-  roomSlug,
-  roomName,
+  kind,
+  id,
+  name,
+  backHref,
   imageUrl,
   initial,
 }: {
-  roomId: string
-  /** for the address of the room page */
-  roomSlug: string
-  roomName: string
+  kind: "space" | "fixture"
+  id: string
+  name: string
+  /** where Save and Cancel go: the room's or item's page */
+  backHref: string
   imageUrl: string
   initial: Crop | null
 }) {
@@ -188,10 +190,10 @@ export function CropEditor({
     start(async () => {
       const c = crop()
       if (!c) return
-      const r = await saveSpaceCrop(roomId, c)
+      const r = await saveCoverCrop(kind, id, c)
       if (!r.ok) return void toast.error(r.error)
       toast("Photo cropped")
-      router.push(`/rooms/${roomSlug}`)
+      router.push(backHref)
     })
 
   return (
@@ -201,7 +203,7 @@ export function CropEditor({
           ref={frame}
           role="application"
           tabIndex={0}
-          aria-label={`Crop for ${roomName}. Drag to move the photo, pinch or scroll to zoom. Arrow keys move it, plus and minus zoom.`}
+          aria-label={`Crop for ${name}. Drag to move the photo, pinch or scroll to zoom. Arrow keys move it, plus and minus zoom.`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -268,7 +270,7 @@ export function CropEditor({
           <div className="flex items-center gap-3.5 rounded-3xl bg-bg p-4">
             <Preview px={48} src={imageUrl} nat={nat} view={view} />
             <span className="flex flex-col">
-              <span className="text-[15px] font-bold">{roomName}</span>
+              <span className="text-[15px] font-bold">{name}</span>
               <span className="text-xs text-muted-foreground">On the Rooms list</span>
             </span>
           </div>
@@ -278,7 +280,7 @@ export function CropEditor({
           </div>
         </section>
         <div className="flex gap-2.5 [&>*]:flex-1 desk:[&>*]:flex-none">
-          <Button type="button" variant="outline" onClick={() => router.push(`/rooms/${roomId}`)}>
+          <Button type="button" variant="outline" onClick={() => router.push(backHref)}>
             Cancel
           </Button>
           <Button type="button" disabled={pending || !view} onClick={save}>

@@ -6,7 +6,7 @@ import { logActivity, requireHousehold } from "@/lib/dal"
 import { normaliseUrl } from "@/lib/documents"
 import { atLeast } from "@/lib/roles"
 import { removeStored } from "@/lib/storage"
-import { Prisma } from "@/generated/prisma/client"
+import { releaseCovers } from "@/lib/cover"
 import type { DocumentKind } from "@/generated/prisma/enums"
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
@@ -112,13 +112,10 @@ export async function deleteDocument(id: string): Promise<Result> {
   if (doc.createdById !== c.user.id && !atLeast(c.role, "ADMIN")) {
     return { ok: false, error: "Only the person who added it, or an admin, can delete it." }
   }
-  // rooms using it as their photo lose the photo and its cropped copy
-  const covers = await db.space.findMany({ where: { coverId: id }, select: { id: true, coverCropKey: true } })
-  await db.$transaction([
-    db.space.updateMany({ where: { coverId: id }, data: { coverId: null, coverCrop: Prisma.DbNull, coverCropKey: null } }),
-    db.document.delete({ where: { id } }), // its links go with it
-  ])
-  const files = [doc.storageKey, doc.thumbnailKey, ...covers.map((s) => s.coverCropKey)].filter((k): k is string => !!k)
+  // rooms and items using it as their photo go back to their icons (and lose the cropped copy)
+  const cropped = await releaseCovers(id)
+  await db.document.delete({ where: { id } }) // its links go with it
+  const files = [doc.storageKey, doc.thumbnailKey, ...cropped].filter((k): k is string => !!k)
   await Promise.all(files.map((k) => removeStored(k).catch(() => {})))
   await logActivity(c, { action: "deleted", entityType: "Document", entityId: id, summary: `${c.user.name} deleted “${doc.title}”` })
   refresh()

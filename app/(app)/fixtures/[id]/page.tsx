@@ -12,13 +12,17 @@ import { category, warranty } from "@/lib/fixtures"
 import { date, money } from "@/lib/format"
 import { atLeast } from "@/lib/roles"
 import { FixtureMenu } from "./fixture-menu"
+import { ServiceCard, type PlanRow, type RecordRow } from "./service-card"
+import { DUE_TONE, formatKm, intervalText, regoDue, serviceDue } from "@/lib/service"
+import { contactLite, loadContacts } from "@/lib/job-rows"
+import { CategoryTile, itemPhotoSrc } from "@/components/fixtures/category-tile"
+import { CoverPhotoButton, type CoverTarget } from "@/components/covers/cover-photo"
+import { activeCoverId } from "@/components/covers/cover-src"
 import { BrandCard } from "./brand-card"
 import { PartsList } from "./parts-list"
 import { DocGroups, type DocGroup } from "@/components/documents/doc-groups"
 import type { FixtureInput } from "../actions"
-import { bySlugOrId } from "@/lib/slug"
 
-const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
 const WARRANTY_TONE = { ok: "bg-t3", soon: "bg-t2", expired: "bg-danger-soft text-danger", none: "bg-surface2" } as const
 
 export default function FixturePage({ params }: PageProps<"/fixtures/[id]">) {
@@ -52,6 +56,10 @@ function toInput(f: {
   replacementValue: { toString(): string } | null
   includedInSale: boolean
   notes: string | null
+  registration: string | null
+  vin: string | null
+  registrationExpiresAt: Date | null
+  odometer: number | null
 }): FixtureInput {
   return {
     name: f.name,
@@ -68,11 +76,15 @@ function toInput(f: {
     replacementValue: f.replacementValue?.toString() ?? "",
     includedInSale: f.includedInSale,
     notes: f.notes ?? "",
+    registration: f.registration ?? "",
+    vin: f.vin ?? "",
+    registrationExpiresAt: iso(f.registrationExpiresAt),
+    odometer: f.odometer != null ? String(f.odometer) : "",
   }
 }
 
 async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params"] }) {
-  const { id: param } = await params // the item's slug (or its id, from old links)
+  const { id } = await params // items are addressed by their id
   const c = await requireHousehold()
   const docInclude = {
     where: { document: { archivedAt: null } },
@@ -80,25 +92,25 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
     include: { document: true },
   }
   const f = await db.fixture.findFirst({
-    where: bySlugOrId(c.householdId, param),
+    where: { id, householdId: c.householdId },
     include: {
       brand: true,
       space: { select: { id: true, name: true, slug: true } },
-      parent: { select: { id: true, name: true, slug: true } },
+      parent: { select: { id: true, name: true } },
+      cover: { select: { id: true, archivedAt: true } },
       links: docInclude,
       parts: {
         where: { archivedAt: null },
         orderBy: { sortOrder: "asc" },
-        include: { brand: true, space: { select: { id: true, name: true } }, links: docInclude },
+        include: { brand: true, space: { select: { id: true, name: true } }, links: docInclude, cover: { select: { id: true, archivedAt: true } } },
       },
     },
   })
   if (!f) notFound()
   // a part's page is its item's page
-  if (f.parent) redirect(`/fixtures/${f.parent.slug}#part-${f.id}`)
-  if (param !== f.slug) redirect(`/fixtures/${f.slug}`)
+  if (f.parent) redirect(`/fixtures/${f.parent.id}#part-${f.id}`)
 
-  const [rooms, brands, inbox] = await Promise.all([
+  const [rooms, brands, inbox, plans, records, contacts] = await Promise.all([
     db.space.findMany({
       where: { householdId: c.householdId, propertyId: f.propertyId, archivedAt: null, kind: { not: "FLOOR" } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -111,13 +123,60 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
       take: 60,
       select: { id: true, title: true, kind: true, thumbnailKey: true, url: true, createdAt: true },
     }),
+    db.servicePlan.findMany({ where: { fixtureId: f.id, archivedAt: null }, orderBy: { createdAt: "asc" } }),
+    db.serviceRecord.findMany({
+      where: { fixtureId: f.id },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      include: {
+        plans: { select: { id: true } },
+        contact: { select: { name: true } },
+        expense: { include: { links: { where: { document: { archivedAt: null } }, include: { document: true } } } },
+      },
+    }),
+    loadContacts(c.householdId),
   ])
+  // when each routine is next due, from the latest service that covered it
+  const planRows: PlanRow[] = plans.map((p) => {
+    const last = records.find((r) => r.plans.some((x) => x.id === p.id)) ?? null
+    return { id: p.id, name: p.name, everyMonths: p.everyMonths, everyKm: p.everyKm, notes: p.notes, interval: intervalText(p), due: serviceDue(p, last, f.odometer) }
+  })
+  const recordRows: RecordRow[] = records.map((r) => ({
+    id: r.id,
+    date: r.date.toISOString().slice(0, 10),
+    odometer: r.odometer,
+    title: r.title,
+    notes: r.notes,
+    planIds: r.plans.map((x) => x.id),
+    contactId: r.contactId,
+    who: r.contact?.name ?? null,
+    vendor: r.expense?.vendor ?? null,
+    amount: r.expense && !r.expense.archivedAt ? r.expense.amount.toFixed(2) : null,
+    gst: r.expense?.gst ? r.expense.gst.toFixed(2) : null,
+    expenseId: r.expenseId,
+    receipts: r.expense?.links.map((l) => ({ linkId: l.id, doc: l.document })) ?? [],
+  }))
+  const isVehicle = f.category === "VEHICLE"
+  const rego = regoDue(f.registrationExpiresAt)
 
   const canEdit = atLeast(c.role, "MEMBER")
   const cat = category(f.category)
+  const makeModel = [f.brand?.name, f.model].filter(Boolean).join(" ")
   const w = warranty(f.warrantyExpiresAt)
   const support = f.brand?.supportUrl ?? f.brand?.website ?? null
   const brandNames = brands.map((b) => b.name)
+  // photos filed to the item (or a part) can be picked as its photo
+  const photosOf = (links: { document: { id: string; title: string; thumbnailKey: string | null } }[]) =>
+    links.filter((l) => l.document.thumbnailKey).map((l) => ({ id: l.document.id, title: l.document.title }))
+  const itemPhoto: CoverTarget = {
+    kind: "fixture",
+    id: f.id,
+    name: f.name,
+    noun: "Item",
+    coverId: activeCoverId(f),
+    src: itemPhotoSrc(f),
+    icon: { type: "fixture", category: f.category },
+    cropHref: `/fixtures/${f.id}/photo`,
+  }
 
   const groups: DocGroup[] = [
     { target: { type: "fixture", id: f.id }, name: f.parts.length ? "Whole Item" : f.name, isPart: false, docs: f.links.map((l) => ({ linkId: l.id, label: l.label, doc: l.document })) },
@@ -138,7 +197,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
           </Link>
           <h1 className="min-w-0 flex-1 truncate">{f.name}</h1>
           {canEdit ? (
-            <FixtureMenu id={f.id} slug={f.slug} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} />
+            <FixtureMenu id={f.id} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} photo={itemPhoto} photos={photosOf(f.links)} parts={f.parts.map((p) => ({ id: p.id, name: p.name }))} />
           ) : null}
         </div>
       </div>
@@ -149,16 +208,19 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
 
         {/* Summary: what it is, where it is, and the two links people reach for */}
         <div className="flex flex-wrap items-center gap-3">
-          <span className={cn("flex size-14 flex-none items-center justify-center rounded-2xl text-on-a", TONE[cat.tone])}>
-            <cat.icon className="size-7" />
-          </span>
+          {canEdit ? (
+            <CoverPhotoButton target={itemPhoto} photos={photosOf(f.links)} className="size-14" />
+          ) : (
+            <CategoryTile value={f.category} src={itemPhoto.src} className="size-14" />
+          )}
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-[15px] font-bold">{[f.brand?.name, f.model].filter(Boolean).join(" ") || cat.label}</span>
+            {/* make and model on top when known; otherwise the category goes there instead of appearing twice */}
+            <span className="text-[15px] font-bold">{makeModel || cat.label}</span>
             <span className="text-[13px] font-medium text-muted-foreground">
-              {cat.label}
+              {makeModel ? cat.label : null}
               {f.space ? (
                 <>
-                  {" · "}
+                  {makeModel ? " · " : null}
                   <Link href={`/rooms/${f.space.slug}`} className="font-semibold text-ink hover:underline">
                     {f.space.name}
                   </Link>
@@ -195,6 +257,17 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
+                {isVehicle ? (
+                  <>
+                    <Row k="Registration" v={f.registration} mono />
+                    <dt className="font-semibold text-muted-foreground">Rego</dt>
+                    <dd>
+                      <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", DUE_TONE[rego.tone])}>{rego.text}</span>
+                    </dd>
+                    <Row k="VIN" v={f.vin} mono />
+                    <Row k="Odometer" v={f.odometer != null ? formatKm(f.odometer) : null} />
+                  </>
+                ) : null}
                 <Row k="Model" v={f.model} mono />
                 <Row k="Serial" v={f.serial} mono />
                 <Row k="Bought" v={date(f.purchasedAt)} />
@@ -247,12 +320,44 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
                     support: p.productUrl ?? p.brand?.supportUrl ?? p.brand?.website ?? null,
                     docs: p.links.length,
                     input: toInput(p),
+                    photos: photosOf(p.links),
+                    photo: {
+                      kind: "fixture",
+                      id: p.id,
+                      name: p.name,
+                      noun: "Part",
+                      coverId: activeCoverId(p),
+                      src: itemPhotoSrc(p),
+                      icon: { type: "part" },
+                      cropHref: `/fixtures/${p.id}/photo`,
+                    },
                   }))}
                 />
               </CardContent>
             </Card>
           </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Service</CardTitle>
+            <CardDescription>
+              {isVehicle ? "Routines like the logbook service, and every service done, with costs and receipts." : "Regular care, like an annual service, and when it was done."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ServiceCard
+              fixtureId={f.id}
+              itemName={f.name}
+              odometer={f.odometer}
+              plans={planRows}
+              records={recordRows}
+              contacts={contacts.map(contactLite)}
+              inbox={inbox.map((d) => ({ id: d.id, title: d.title, kind: d.kind, hasThumb: !!d.thumbnailKey, isLink: !!d.url, when: date(d.createdAt) }))}
+              canEdit={canEdit}
+            />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

@@ -102,7 +102,6 @@ async function Jobs({ searchParams }: { searchParams: PageProps<"/jobs">["search
         looseCosts={looseCosts}
         jobs={jobs.map((j) => ({
           id: j.id,
-          slug: j.slug,
           title: j.title,
           status: j.status,
           when: j.finishedAt ? date(j.finishedAt) : j.startedAt ? `From ${date(j.startedAt)}` : "",

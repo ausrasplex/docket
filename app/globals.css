@@ -197,14 +197,23 @@
 }
 /* Folio's "muted" (secondary text) is --mutedInk here, since shadcn uses --muted for a fill colour. */
 
+/* Radix's scroll lock adds a scrollbar-width margin-right to <body> to stand in for the hidden scrollbar.
+   html's scrollbar-gutter: stable already keeps that space, so the margin doubles it and the page shifts
+   left whenever a menu or dialog opens. Unlayered and more specific than the injected rule so it wins. */
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
+}
+
 /* ---------- Base ---------- */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   html {
+    /* Keep the scrollbar's space reserved so pages don't shift. No overflow-y here: with it set, Radix's
+       scroll lock (body overflow: hidden) turns <body> into its own scroll box and the sticky sidebar and
+       top bar jump off-screen when a menu or dialog opens while scrolled. */
     scrollbar-gutter: stable;
-    overflow-y: scroll;
     @apply font-sans;
   }
   body {

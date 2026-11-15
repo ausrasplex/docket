@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import type { SpaceKind } from "@/generated/prisma/enums"
 import { setSpaceArchived } from "../actions"
 import { SpaceDrawer } from "../space-drawer"
-import { RoomPhotoDrawer, type PhotoRoom, type RoomPhoto } from "./room-photo"
+import { CoverPhotoDrawer, type CoverPhoto, type CoverTarget } from "@/components/covers/cover-photo"
 
 export function RoomActions({
   room,
@@ -20,8 +20,8 @@ export function RoomActions({
   room: { id: string; slug: string; name: string; kind: SpaceKind; parentId: string | null; notes: string }
   archived: boolean
   floors: { id: string; name: string }[]
-  photoRoom: PhotoRoom
-  photos: RoomPhoto[]
+  photoRoom: CoverTarget
+  photos: CoverPhoto[]
 }) {
   const [open, setOpen] = useState(false)
   const [photoOpen, setPhotoOpen] = useState(false)
@@ -62,7 +62,7 @@ export function RoomActions({
         </DropdownMenuContent>
       </DropdownMenu>
       <SpaceDrawer open={open} onOpenChange={setOpen} initial={initial} floors={floors} />
-      <RoomPhotoDrawer open={photoOpen} onOpenChange={setPhotoOpen} room={photoRoom} photos={photos} />
+      <CoverPhotoDrawer open={photoOpen} onOpenChange={setPhotoOpen} target={photoRoom} photos={photos} />
     </>
   )
 }

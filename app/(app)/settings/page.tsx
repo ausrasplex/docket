@@ -78,8 +78,8 @@ async function Settings() {
       <div className="flex flex-col gap-5">
         <Card>
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>How you appear to others in the household.</CardDescription>
+            <CardTitle>Your Account</CardTitle>
+            <CardDescription>Your name, the email you sign in with, and your password.</CardDescription>
           </CardHeader>
           <CardContent>
             <Profile name={c.user.name} email={c.user.email} />
