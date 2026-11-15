@@ -8,6 +8,7 @@ import { db } from "@/lib/db"
 import { requireHousehold } from "@/lib/dal"
 import { validCrop } from "@/lib/crop"
 import { CropEditor } from "./crop-editor"
+import { bySlugOrId } from "@/lib/slug"
 
 export const metadata = { title: "Adjust Photo · Docket" }
 
@@ -27,21 +28,22 @@ export default function RoomPhotoPage({ params }: PageProps<"/rooms/[id]/photo">
 }
 
 async function Body({ params }: { params: PageProps<"/rooms/[id]/photo">["params"] }) {
-  const { id } = await params
+  const { id: param } = await params // the room's slug (or its id, from old links)
   const c = await requireHousehold("MEMBER")
   const room = await db.space.findFirst({
-    where: { id, householdId: c.householdId },
-    select: { id: true, name: true, coverCrop: true, cover: { select: { id: true, thumbnailKey: true, archivedAt: true } } },
+    where: bySlugOrId(c.householdId, param),
+    select: { id: true, slug: true, name: true, coverCrop: true, cover: { select: { id: true, thumbnailKey: true, archivedAt: true } } },
   })
   if (!room) notFound()
+  if (param !== room.slug) redirect(`/rooms/${room.slug}/photo`)
   // no photo to crop: back to the room, where one can be added
-  if (!room.cover || room.cover.archivedAt || !room.cover.thumbnailKey) redirect(`/rooms/${room.id}`)
+  if (!room.cover || room.cover.archivedAt || !room.cover.thumbnailKey) redirect(`/rooms/${room.slug}`)
 
   return (
     <>
       <div className="sticky top-0 z-20 -mx-4 mb-2 border-b border-line bg-[color-mix(in_srgb,var(--bg)_72%,transparent)] px-4 py-2.5 backdrop-blur-[16px] desk:-mx-8 desk:px-8 desk:py-3.5">
         <div className="mx-auto flex min-h-11 max-w-[1100px] items-center gap-2.5">
-          <Link href={`/rooms/${room.id}`} aria-label={`Back to ${room.name}`} className="flex size-11 flex-none items-center justify-center rounded-full bg-surface hover:bg-surface2">
+          <Link href={`/rooms/${room.slug}`} aria-label={`Back to ${room.name}`} className="flex size-11 flex-none items-center justify-center rounded-full bg-surface hover:bg-surface2">
             <ChevronLeft className="size-5" />
           </Link>
           <h1 className="min-w-0 flex-1 truncate">Adjust Photo</h1>
@@ -49,7 +51,7 @@ async function Body({ params }: { params: PageProps<"/rooms/[id]/photo">["params
       </div>
       <PageBody>
         <p className="-mt-1 text-sm text-muted-foreground">Move and zoom the photo so the square shows the part of {room.name} you want.</p>
-        <CropEditor roomId={room.id} roomName={room.name} imageUrl={`/api/files/${room.cover.id}?v=thumb`} initial={validCrop(room.coverCrop)} />
+        <CropEditor roomId={room.id} roomSlug={room.slug} roomName={room.name} imageUrl={`/api/files/${room.cover.id}?v=thumb`} initial={validCrop(room.coverCrop)} />
       </PageBody>
     </>
   )

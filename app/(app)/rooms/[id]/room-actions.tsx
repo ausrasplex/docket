@@ -17,7 +17,7 @@ export function RoomActions({
   photoRoom,
   photos,
 }: {
-  room: { id: string; name: string; kind: SpaceKind; parentId: string | null; notes: string }
+  room: { id: string; slug: string; name: string; kind: SpaceKind; parentId: string | null; notes: string }
   archived: boolean
   floors: { id: string; name: string }[]
   photoRoom: PhotoRoom
@@ -27,7 +27,7 @@ export function RoomActions({
   const [photoOpen, setPhotoOpen] = useState(false)
   const [, start] = useTransition()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const initial = useMemo(() => ({ ...room }), [room.id, room.name, room.kind, room.parentId, room.notes])
+  const initial = useMemo(() => ({ ...room }), [room.id, room.slug, room.name, room.kind, room.parentId, room.notes])
   return (
     <>
       <DropdownMenu>

@@ -13,6 +13,7 @@ import { BLANK_FIXTURE, FixtureDrawer } from "./fixture-drawer"
 
 export type FixtureCard = {
   id: string
+  slug: string
   name: string
   category: FixtureCategory
   makeModel: string
@@ -81,7 +82,7 @@ export function FixturesList({
             {g.list.map((f) => {
               const c = category(f.category)
               return (
-                <Link key={f.id} href={`/fixtures/${f.id}`} className="lift group flex flex-col gap-3 rounded-3xl bg-surface p-4">
+                <Link key={f.id} href={`/fixtures/${f.slug}`} className="lift group flex flex-col gap-3 rounded-3xl bg-surface p-4">
                   <div className="flex items-center gap-3">
                     <span className={cn("flex size-12 flex-none items-center justify-center rounded-2xl text-on-a", TONE[c.tone])}>
                       <c.icon className="size-6" />

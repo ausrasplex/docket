@@ -13,7 +13,7 @@ import type { SpaceKind } from "@/generated/prisma/enums"
 import { setSpaceCover } from "../actions"
 
 export type RoomPhoto = { id: string; title: string }
-export type PhotoRoom = { id: string; name: string; kind: SpaceKind; coverId: string | null; src: string | null }
+export type PhotoRoom = { id: string; slug: string; name: string; kind: SpaceKind; coverId: string | null; src: string | null }
 
 /**
  * Pick the photo shown in place of the room's icon: take one, upload one, or choose a photo already
@@ -54,7 +54,7 @@ export function RoomPhotoDrawer({
       if (j.created?.length) {
         // a new photo goes straight to the crop screen, centred to start with
         onOpenChange(false)
-        router.push(`/rooms/${room.id}/photo`)
+        router.push(`/rooms/${room.slug}/photo`)
         return
       }
       router.refresh()
@@ -123,7 +123,7 @@ export function RoomPhotoDrawer({
 
       {room.coverId ? (
         <Button asChild type="button" variant="outline" className="self-start">
-          <Link href={`/rooms/${room.id}/photo`}>
+          <Link href={`/rooms/${room.slug}/photo`}>
             <Crop />
             Adjust Crop
           </Link>

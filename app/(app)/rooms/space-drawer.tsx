@@ -14,7 +14,7 @@ import { createSpace, updateSpace, type SpaceInput } from "./actions"
 
 const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
 
-export type SpaceDraft = { id?: string } & SpaceInput
+export type SpaceDraft = { id?: string; slug?: string } & SpaceInput
 
 /** Add or edit a room, floor or area. */
 export function SpaceDrawer({
@@ -46,7 +46,8 @@ export function SpaceDrawer({
       if (!r.ok) return void toast.error(r.error)
       toast(editing ? "Saved" : `${v.name.trim()} added`)
       onOpenChange(false)
-      if (!editing && "id" in r) router.push(`/rooms/${r.id}`)
+      if (!editing && "slug" in r) router.push(`/rooms/${r.slug}`)
+      else if (editing && "slug" in r && r.slug !== initial.slug) router.replace(`/rooms/${r.slug}`)
     })
 
   return (

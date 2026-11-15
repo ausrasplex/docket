@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { ChevronLeft, ChevronRight, FileText, Hammer, Lamp, Paintbrush, Plus } from "lucide-react"
 import { PageBody } from "@/components/shell/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +18,7 @@ import { RoomPhotoButton } from "./room-photo"
 import { RoomTile, roomPhotoSrc } from "@/components/rooms/room-tile"
 import { FinishList } from "@/components/finishes/finish-list"
 import { loadFinishes } from "@/lib/finish-rows"
+import { bySlugOrId } from "@/lib/slug"
 
 
 export default function RoomPage({ params }: PageProps<"/rooms/[id]">) {
@@ -35,18 +36,18 @@ export default function RoomPage({ params }: PageProps<"/rooms/[id]">) {
 }
 
 async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) {
-  const { id } = await params
+  const { id: param } = await params // the room's slug (or its id, from old links)
   const c = await requireHousehold()
   const room = await db.space.findFirst({
-    where: { id, householdId: c.householdId },
+    where: bySlugOrId(c.householdId, param),
     include: {
-      parent: { select: { id: true, name: true } },
+      parent: { select: { id: true, name: true, slug: true } },
       cover: { select: { id: true, archivedAt: true } },
-      children: { where: { archivedAt: null }, select: { id: true, name: true, kind: true }, orderBy: { sortOrder: "asc" } },
+      children: { where: { archivedAt: null }, select: { id: true, slug: true, name: true, kind: true }, orderBy: { sortOrder: "asc" } },
       fixtures: {
         where: { archivedAt: null, parentId: null },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, model: true, brand: { select: { name: true } }, _count: { select: { parts: true, links: true } } },
+        select: { id: true, slug: true, name: true, model: true, brand: { select: { name: true } }, _count: { select: { parts: true, links: true } } },
       },
       links: {
         where: { document: { archivedAt: null } },
@@ -56,6 +57,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
     },
   })
   if (!room) notFound()
+  if (param !== room.slug) redirect(`/rooms/${room.slug}`)
   const k = spaceKind(room.kind)
   const [floors, finishes, rooms, brands, jobs] = await Promise.all([
     db.space.findMany({
@@ -72,14 +74,14 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
     db.job.findMany({
       where: { householdId: c.householdId, archivedAt: null, spaces: { some: { spaceId: room.id } } },
       orderBy: [{ finishedAt: { sort: "desc", nulls: "first" } }, { createdAt: "desc" }],
-      select: { id: true, title: true, status: true, finishedAt: true, expenses: { where: { archivedAt: null }, select: { amount: true } } },
+      select: { id: true, slug: true, title: true, status: true, finishedAt: true, expenses: { where: { archivedAt: null }, select: { amount: true } } },
     }),
   ])
   const canEdit = atLeast(c.role, "MEMBER")
   // an archived photo no longer counts as the room's photo
   const coverId = room.cover && !room.cover.archivedAt ? room.cover.id : null
   const photos = room.links.filter((l) => l.document.thumbnailKey).map((l) => ({ id: l.document.id, title: l.document.title }))
-  const photoRoom = { id: room.id, name: room.name, kind: room.kind, coverId, src: roomPhotoSrc(room) }
+  const photoRoom = { id: room.id, slug: room.slug, name: room.name, kind: room.kind, coverId, src: roomPhotoSrc(room) }
 
   return (
     <>
@@ -91,7 +93,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
           <h1 className="min-w-0 flex-1 truncate">{room.name}</h1>
           {canEdit ? (
             <RoomActions
-              room={{ id: room.id, name: room.name, kind: room.kind, parentId: room.parentId, notes: room.notes ?? "" }}
+              room={{ id: room.id, slug: room.slug, name: room.name, kind: room.kind, parentId: room.parentId, notes: room.notes ?? "" }}
               archived={!!room.archivedAt}
               floors={floors}
               photoRoom={photoRoom}
@@ -112,7 +114,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
             <span className="text-xs font-medium text-muted-foreground">
               {room.parent ? (
                 <>
-                  On <Link href={`/rooms/${room.parent.id}`} className="font-semibold text-ink hover:underline">{room.parent.name}</Link>
+                  On <Link href={`/rooms/${room.parent.slug}`} className="font-semibold text-ink hover:underline">{room.parent.name}</Link>
                 </>
               ) : (
                 c.property.name
@@ -130,7 +132,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
             <CardContent className="flex flex-col">
               {room.children.length ? (
                 room.children.map((ch) => (
-                  <Link key={ch.id} href={`/rooms/${ch.id}`} className="border-t border-line py-3 text-[15px] font-bold first:border-t-0 hover:underline">
+                  <Link key={ch.id} href={`/rooms/${ch.slug}`} className="border-t border-line py-3 text-[15px] font-bold first:border-t-0 hover:underline">
                     {ch.name}
                   </Link>
                 ))
@@ -149,7 +151,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
               <CardContent className="flex flex-col">
                 {room.fixtures.length ? (
                   room.fixtures.map((f) => (
-                    <Link key={f.id} href={`/fixtures/${f.id}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
+                    <Link key={f.id} href={`/fixtures/${f.slug}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
                       <span className="flex size-11 flex-none items-center justify-center rounded-full bg-t1">
                         <Lamp className="size-5" />
                       </span>
@@ -198,7 +200,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
             <CardContent className="flex flex-col">
               {jobs.length ? (
                 jobs.map((j) => (
-                  <Link key={j.id} href={`/jobs/${j.id}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
+                  <Link key={j.id} href={`/jobs/${j.slug}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
                     <span className="flex size-11 flex-none items-center justify-center rounded-full bg-t2">
                       <Hammer className="size-5" />
                     </span>

@@ -21,11 +21,14 @@ type View = { cx: number; cy: number; z: number }
  */
 export function CropEditor({
   roomId,
+  roomSlug,
   roomName,
   imageUrl,
   initial,
 }: {
   roomId: string
+  /** for the address of the room page */
+  roomSlug: string
   roomName: string
   imageUrl: string
   initial: Crop | null
@@ -188,7 +191,7 @@ export function CropEditor({
       const r = await saveSpaceCrop(roomId, c)
       if (!r.ok) return void toast.error(r.error)
       toast("Photo cropped")
-      router.push(`/rooms/${roomId}`)
+      router.push(`/rooms/${roomSlug}`)
     })
 
   return (

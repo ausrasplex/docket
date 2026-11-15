@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { ChevronLeft, Hammer } from "lucide-react"
 import { cn } from "cn"
 import { PageBody } from "@/components/shell/page-header"
@@ -17,6 +17,7 @@ import { expenseClass, jobStatus } from "@/lib/jobs"
 import { isoDay } from "@/lib/parse"
 import { atLeast } from "@/lib/roles"
 import { AddJobCost, JobMenu } from "./job-client"
+import { bySlugOrId } from "@/lib/slug"
 
 export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
   return (
@@ -33,16 +34,17 @@ export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
 }
 
 async function Job({ params }: { params: PageProps<"/jobs/[id]">["params"] }) {
-  const { id } = await params
+  const { id: param } = await params // the job's slug (or its id, from old links)
   const c = await requireHousehold()
   const job = await db.job.findFirst({
-    where: { id, householdId: c.householdId },
+    where: bySlugOrId(c.householdId, param),
     include: {
-      spaces: { include: { space: { select: { id: true, name: true } } } },
+      spaces: { include: { space: { select: { id: true, name: true, slug: true } } } },
       links: { where: { document: { archivedAt: null } }, orderBy: { createdAt: "asc" }, include: { document: true } },
     },
   })
   if (!job) notFound()
+  if (param !== job.slug) redirect(`/jobs/${job.slug}`)
 
   const [costs, contacts, rooms, inbox] = await Promise.all([
     loadExpenses({ householdId: c.householdId, jobId: job.id }),
@@ -76,6 +78,7 @@ async function Job({ params }: { params: PageProps<"/jobs/[id]">["params"] }) {
           {canEdit ? (
             <JobMenu
               id={job.id}
+              slug={job.slug}
               title={job.title}
               archived={!!job.archivedAt}
               rooms={rooms}
@@ -116,7 +119,7 @@ async function Job({ params }: { params: PageProps<"/jobs/[id]">["params"] }) {
             {job.spaces.length ? (
               <span className="flex flex-wrap gap-1.5">
                 {job.spaces.map((s) => (
-                  <Link key={s.spaceId} href={`/rooms/${s.spaceId}`} className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold hover:bg-surface2">
+                  <Link key={s.spaceId} href={`/rooms/${s.space.slug}`} className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold hover:bg-surface2">
                     {s.space.name}
                   </Link>
                 ))}

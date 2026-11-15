@@ -16,6 +16,7 @@ import { BrandCard } from "./brand-card"
 import { PartsList } from "./parts-list"
 import { DocGroups, type DocGroup } from "@/components/documents/doc-groups"
 import type { FixtureInput } from "../actions"
+import { bySlugOrId } from "@/lib/slug"
 
 const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
 const WARRANTY_TONE = { ok: "bg-t3", soon: "bg-t2", expired: "bg-danger-soft text-danger", none: "bg-surface2" } as const
@@ -71,7 +72,7 @@ function toInput(f: {
 }
 
 async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params"] }) {
-  const { id } = await params
+  const { id: param } = await params // the item's slug (or its id, from old links)
   const c = await requireHousehold()
   const docInclude = {
     where: { document: { archivedAt: null } },
@@ -79,11 +80,11 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
     include: { document: true },
   }
   const f = await db.fixture.findFirst({
-    where: { id, householdId: c.householdId },
+    where: bySlugOrId(c.householdId, param),
     include: {
       brand: true,
-      space: { select: { id: true, name: true } },
-      parent: { select: { id: true, name: true } },
+      space: { select: { id: true, name: true, slug: true } },
+      parent: { select: { id: true, name: true, slug: true } },
       links: docInclude,
       parts: {
         where: { archivedAt: null },
@@ -94,7 +95,8 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
   })
   if (!f) notFound()
   // a part's page is its item's page
-  if (f.parent) redirect(`/fixtures/${f.parent.id}#part-${f.id}`)
+  if (f.parent) redirect(`/fixtures/${f.parent.slug}#part-${f.id}`)
+  if (param !== f.slug) redirect(`/fixtures/${f.slug}`)
 
   const [rooms, brands, inbox] = await Promise.all([
     db.space.findMany({
@@ -136,7 +138,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
           </Link>
           <h1 className="min-w-0 flex-1 truncate">{f.name}</h1>
           {canEdit ? (
-            <FixtureMenu id={f.id} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} />
+            <FixtureMenu id={f.id} slug={f.slug} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} />
           ) : null}
         </div>
       </div>
@@ -157,7 +159,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
               {f.space ? (
                 <>
                   {" · "}
-                  <Link href={`/rooms/${f.space.id}`} className="font-semibold text-ink hover:underline">
+                  <Link href={`/rooms/${f.space.slug}`} className="font-semibold text-ink hover:underline">
                     {f.space.name}
                   </Link>
                 </>

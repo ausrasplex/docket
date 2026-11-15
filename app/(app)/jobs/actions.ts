@@ -7,13 +7,15 @@ import { normaliseUrl } from "@/lib/documents"
 import { EXPENSE_CLASSES, JOB_STATUSES } from "@/lib/jobs"
 import { parseDay, parseMoney } from "@/lib/parse"
 import { money } from "@/lib/format"
+import { uniqueSlug } from "@/lib/slug"
 import type { ExpenseClass, JobStatus } from "@/generated/prisma/enums"
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 
-function refresh(jobId?: string | null) {
-  revalidatePath("/jobs")
-  if (jobId) revalidatePath(`/jobs/${jobId}`)
+// jobs are refreshed as a whole (their pages are addressed by slug)
+function refresh(_jobId?: string | null) {
+  void _jobId
+  revalidatePath("/jobs", "layout")
   revalidatePath("/rooms", "layout")
   revalidatePath("/")
 }
@@ -97,13 +99,14 @@ function jobData(i: JobInput) {
   }
 }
 
-export async function createJob(input: JobInput): Promise<Result<{ id: string }>> {
+export async function createJob(input: JobInput): Promise<Result<{ id: string; slug: string }>> {
   const c = await requireHousehold("MEMBER")
   const bad = await checkJob(c.householdId, input)
   if (bad) return { ok: false, error: bad }
   const job = await db.job.create({
     data: {
       ...jobData(input),
+      slug: await uniqueSlug("job", c.householdId, input.title),
       householdId: c.householdId,
       propertyId: c.property.id,
       createdById: c.user.id,
@@ -112,17 +115,20 @@ export async function createJob(input: JobInput): Promise<Result<{ id: string }>
   })
   await logActivity(c, { action: "created", entityType: "Job", entityId: job.id, summary: `${c.user.name} added the job “${job.title}”` })
   refresh(job.id)
-  return { ok: true, id: job.id }
+  return { ok: true, id: job.id, slug: job.slug }
 }
 
-export async function updateJob(id: string, input: JobInput): Promise<Result> {
+/** Renaming a job changes its address too; the new slug comes back so the page can follow it. */
+export async function updateJob(id: string, input: JobInput): Promise<Result<{ slug: string }>> {
   const c = await requireHousehold("MEMBER")
   const job = await db.job.findFirst({ where: { id, householdId: c.householdId } })
   if (!job) return { ok: false, error: "That job no longer exists." }
   const bad = await checkJob(c.householdId, input)
   if (bad) return { ok: false, error: bad }
+  const title = input.title.trim()
+  const slug = title === job.title ? job.slug : await uniqueSlug("job", c.householdId, title, id)
   await db.$transaction([
-    db.job.update({ where: { id }, data: { ...jobData(input), updatedById: c.user.id } }),
+    db.job.update({ where: { id }, data: { ...jobData(input), slug, updatedById: c.user.id } }),
     db.jobSpace.deleteMany({ where: { jobId: id } }),
     db.jobSpace.createMany({ data: [...new Set(input.spaceIds)].map((spaceId) => ({ jobId: id, spaceId })) }),
   ])
@@ -130,7 +136,7 @@ export async function updateJob(id: string, input: JobInput): Promise<Result> {
     await logActivity(c, { action: "updated", entityType: "Job", entityId: id, summary: `${c.user.name} marked “${input.title.trim()}” ${input.status.toLowerCase().replace("_", " ")}` })
   }
   refresh(id)
-  return { ok: true }
+  return { ok: true, slug }
 }
 
 export async function setJobArchived(id: string, archived: boolean): Promise<Result> {

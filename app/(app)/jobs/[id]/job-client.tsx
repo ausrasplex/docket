@@ -13,6 +13,7 @@ import { setJobArchived, type JobInput } from "../actions"
 
 export function JobMenu({
   id,
+  slug,
   title,
   archived,
   initial,
@@ -20,6 +21,7 @@ export function JobMenu({
   contacts,
 }: {
   id: string
+  slug: string
   title: string
   archived: boolean
   initial: JobInput
@@ -57,7 +59,7 @@ export function JobMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <JobDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} rooms={rooms} contacts={contacts} />
+      <JobDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} editingSlug={slug} rooms={rooms} contacts={contacts} />
     </>
   )
 }

@@ -46,6 +46,7 @@ async function Rooms() {
       canEdit={atLeast(c.role, "MEMBER")}
       rooms={spaces.map((s) => ({
         id: s.id,
+        slug: s.slug,
         name: s.name,
         kind: s.kind,
         parentId: s.parentId,

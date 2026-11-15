@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation"
 import { db } from "@/lib/db"
 import { requireUser } from "@/lib/dal"
+import { slugify } from "@/lib/slug"
 import type { SpaceKind } from "@/generated/prisma/enums"
 
 export type SetupState = { error?: string } | undefined
@@ -41,7 +42,8 @@ export async function createHousehold(_: SetupState, f: FormData): Promise<Setup
     const p = await tx.property.create({ data: { householdId, name: property, address } })
     if (starter) {
       await tx.space.createMany({
-        data: STARTER_ROOMS.map((r, i) => ({ householdId, propertyId: p.id, name: r.name, kind: r.kind, sortOrder: i })),
+        // starter names are all different, and a new household has no rooms yet, so their slugs are free
+        data: STARTER_ROOMS.map((r, i) => ({ householdId, propertyId: p.id, name: r.name, slug: slugify(r.name, "room"), kind: r.kind, sortOrder: i })),
       })
     }
     await tx.user.update({ where: { id: user.id }, data: { activeHouseholdId: householdId } })

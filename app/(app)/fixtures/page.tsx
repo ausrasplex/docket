@@ -63,6 +63,7 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
           const soonest = ends.sort((a, b) => a.getTime() - b.getTime())[0] ?? f.warrantyExpiresAt
           return {
             id: f.id,
+            slug: f.slug,
             name: f.name,
             category: f.category,
             makeModel: [f.brand?.name, f.model].filter(Boolean).join(" "),

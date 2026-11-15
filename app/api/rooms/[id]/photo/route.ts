@@ -10,10 +10,15 @@ export async function GET(_req: Request, { params }: RouteContext<"/api/rooms/[i
   const session = await getSession()
   if (!session) return new Response("Sign in first", { status: 401 })
   const { id } = await params
-  const space = await db.space.findFirst({
-    where: { id, household: { memberships: { some: { userId: session.user.id } } } },
-    select: { coverCropKey: true, cover: { select: { thumbnailKey: true, archivedAt: true } } },
+  // by id (what the tiles use) or by the room's readable address; a slug is only unique within a household,
+  // so the signed-in person's current household wins if two of theirs share one
+  const mine = { memberships: { some: { userId: session.user.id } } }
+  const found = await db.space.findMany({
+    where: { OR: [{ id }, { slug: id }], household: mine },
+    select: { householdId: true, coverCropKey: true, cover: { select: { thumbnailKey: true, archivedAt: true } } },
+    take: 10,
   })
+  const space = found.find((x) => x.householdId === session.user.activeHouseholdId) ?? found[0]
   if (!space?.cover || space.cover.archivedAt) return new Response("Not found", { status: 404 })
   const key = space.coverCropKey ?? space.cover.thumbnailKey
   if (!key) return new Response("Not found", { status: 404 })

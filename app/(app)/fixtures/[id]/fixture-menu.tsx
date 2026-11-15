@@ -10,6 +10,7 @@ import { setFixtureArchived, type FixtureInput } from "../actions"
 
 export function FixtureMenu({
   id,
+  slug,
   name,
   archived,
   initial,
@@ -17,6 +18,7 @@ export function FixtureMenu({
   brands,
 }: {
   id: string
+  slug: string
   name: string
   archived: boolean
   initial: FixtureInput
@@ -59,7 +61,7 @@ export function FixtureMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <FixtureDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} rooms={rooms} brands={brands} />
+      <FixtureDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} editingSlug={slug} rooms={rooms} brands={brands} />
       <FixtureDrawer
         open={addPart}
         onOpenChange={setAddPart}

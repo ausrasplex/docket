@@ -40,6 +40,7 @@ export function FixtureDrawer({
   onOpenChange,
   initial,
   editingId,
+  editingSlug,
   parent,
   rooms,
   brands,
@@ -48,6 +49,8 @@ export function FixtureDrawer({
   onOpenChange: (o: boolean) => void
   initial: FixtureInput
   editingId?: string
+  /** the item's current address, to follow it when a rename changes it */
+  editingSlug?: string
   parent?: { id: string; name: string }
   rooms: { id: string; name: string }[]
   brands: string[]
@@ -70,7 +73,8 @@ export function FixtureDrawer({
       if (!r.ok) return void toast.error(r.error)
       toast(editingId ? "Saved" : `${v.name.trim()} added`)
       onOpenChange(false)
-      if (!editingId && !isPart && "id" in r) router.push(`/fixtures/${r.id}`)
+      if (!editingId && !isPart && "slug" in r) router.push(`/fixtures/${r.slug}`)
+      else if (editingId && !isPart && editingSlug && "slug" in r && r.slug !== editingSlug) router.replace(`/fixtures/${r.slug}`)
     })
 
   /** Warranty end from the purchase (or install) date plus N years. */

@@ -7,6 +7,7 @@ import type { SpaceKind } from "@/generated/prisma/enums"
 import { Prisma } from "@/generated/prisma/client"
 import sharp from "sharp"
 import { cropPixels, validCrop } from "@/lib/crop"
+import { uniqueSlug } from "@/lib/slug"
 import { readStored, removeStored, storeDerived } from "@/lib/storage"
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
@@ -22,7 +23,7 @@ async function checkParent(householdId: string, parentId: string | null, selfId?
   return p ? null : "Pick a floor from the list."
 }
 
-export async function createSpace(input: SpaceInput): Promise<Result<{ id: string }>> {
+export async function createSpace(input: SpaceInput): Promise<Result<{ id: string; slug: string }>> {
   const c = await requireHousehold("MEMBER")
   const name = input.name.trim()
   if (!name) return { ok: false, error: "Give it a name." }
@@ -36,6 +37,7 @@ export async function createSpace(input: SpaceInput): Promise<Result<{ id: strin
       householdId: c.householdId,
       propertyId: c.property.id,
       name,
+      slug: await uniqueSlug("space", c.householdId, name),
       kind: input.kind,
       parentId,
       notes: input.notes.trim() || null,
@@ -44,10 +46,11 @@ export async function createSpace(input: SpaceInput): Promise<Result<{ id: strin
   })
   await logActivity(c, { action: "created", entityType: "Space", entityId: s.id, summary: `${c.user.name} added ${name}` })
   revalidatePath("/rooms")
-  return { ok: true, id: s.id }
+  return { ok: true, id: s.id, slug: s.slug }
 }
 
-export async function updateSpace(id: string, input: SpaceInput): Promise<Result> {
+/** Renaming a room changes its address too; the new slug comes back so the page can follow it. */
+export async function updateSpace(id: string, input: SpaceInput): Promise<Result<{ slug: string }>> {
   const c = await requireHousehold("MEMBER")
   const s = await db.space.findFirst({ where: { id, householdId: c.householdId } })
   if (!s) return { ok: false, error: "That room no longer exists." }
@@ -57,10 +60,10 @@ export async function updateSpace(id: string, input: SpaceInput): Promise<Result
   const parentId = input.kind === "FLOOR" ? null : input.parentId
   const bad = await checkParent(c.householdId, parentId, id)
   if (bad) return { ok: false, error: bad }
-  await db.space.update({ where: { id }, data: { name, kind: input.kind, parentId, notes: input.notes.trim() || null } })
-  revalidatePath("/rooms")
-  revalidatePath(`/rooms/${id}`)
-  return { ok: true }
+  const slug = name === s.name ? s.slug : await uniqueSlug("space", c.householdId, name, id)
+  await db.space.update({ where: { id }, data: { name, slug, kind: input.kind, parentId, notes: input.notes.trim() || null } })
+  revalidatePath("/rooms", "layout")
+  return { ok: true, slug }
 }
 
 /**
@@ -119,7 +122,6 @@ export async function setSpaceArchived(id: string, archived: boolean): Promise<R
   if (!s) return { ok: false, error: "That room no longer exists." }
   await db.space.update({ where: { id }, data: { archivedAt: archived ? new Date() : null } })
   await logActivity(c, { action: archived ? "archived" : "restored", entityType: "Space", entityId: id, summary: `${c.user.name} ${archived ? "archived" : "restored"} ${s.name}` })
-  revalidatePath("/rooms")
-  revalidatePath(`/rooms/${id}`)
+  revalidatePath("/rooms", "layout")
   return { ok: true }
 }

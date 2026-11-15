@@ -221,6 +221,8 @@ model Space {
   parent       Space?    @relation("SpaceTree", fields: [parentId], references: [id], onDelete: SetNull)
   children     Space[]   @relation("SpaceTree")
   name         String
+  /// the readable part of its address: /rooms/kitchen (unique in the household)
+  slug         String
   kind         SpaceKind @default(ROOM)
   sortOrder    Int       @default(0)
   notes        String?
@@ -240,6 +242,7 @@ model Space {
   jobs     JobSpace[]
   links    DocumentLink[]
 
+  @@unique([householdId, slug])
   @@index([householdId])
   @@index([propertyId])
 }
@@ -283,6 +286,8 @@ model Fixture {
   sortOrder   Int       @default(0) // order of parts within an item
 
   name     String // "Ducted air conditioner", or for a part: "Outdoor unit"
+  /// the readable part of its address: /fixtures/ducted-air-conditioner (parts get one too; it opens their item)
+  slug     String
   category FixtureCategory @default(OTHER)
   brandId  String?
   brand    Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
@@ -313,6 +318,7 @@ model Fixture {
   links DocumentLink[]
   tags  Tag[]
 
+  @@unique([householdId, slug])
   @@index([householdId])
   @@index([spaceId])
   @@index([parentId])
@@ -447,6 +453,8 @@ model Job {
   propertyId   String
   property     Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   title        String
+  /// the readable part of its address: /jobs/bathroom-renovation (unique in the household)
+  slug         String
   description  String?
   status       JobStatus @default(DONE)
   startedAt    DateTime? @db.Date
@@ -467,6 +475,7 @@ model Job {
   links    DocumentLink[]
   tags     Tag[]
 
+  @@unique([householdId, slug])
   @@index([householdId])
 }
 
