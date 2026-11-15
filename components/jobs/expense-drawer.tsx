@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel, OptionRow } from "@/components/drawer"
 import { Chip, Chips, Section } from "@/components/form-bits"
 import { DocumentRow, type DocLike } from "@/components/documents/document-row"
+import { DocMenu } from "@/components/documents/doc-menu"
 import type { InboxDoc } from "@/components/documents/doc-groups"
 import { EXPENSE_CATEGORIES, EXPENSE_CLASSES, PAYMENT_METHODS } from "@/lib/jobs"
 import { gstOf } from "@/lib/parse"
@@ -139,7 +140,7 @@ export function ExpenseDrawer({
         {receipts.length ? (
           <div className="flex flex-col">
             {receipts.map((r) => (
-              <DocumentRow key={r.linkId} doc={r.doc} />
+              <DocumentRow key={r.linkId} doc={r.doc} trailing={<DocMenu doc={{ id: r.doc.id, title: r.doc.title, isLink: !!r.doc.url }} onDeleted={() => router.refresh()} />} />
             ))}
           </div>
         ) : null}

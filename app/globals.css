@@ -32,7 +32,9 @@
   --color-on-a-muted: var(--onAMuted);
   --color-sel: var(--sel);
   --color-sel-soft: var(--selSoft);
-  --color-base: var(--base);
+  /* Folio's "base" (chart baseline grey) is named baseline here: --color-base would make Tailwind's text-base
+     font-size class also set this grey colour */
+  --color-baseline: var(--base);
   --color-outline: var(--outline);
   --color-nav-on: var(--navOn);
   --color-danger: var(--danger);

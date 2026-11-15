@@ -1,14 +1,13 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { Archive, FileText, FolderInput } from "lucide-react"
-import { toast } from "sonner"
+import { useState } from "react"
+import { FileText, FolderInput, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FileDrawer, type EditableDoc } from "@/components/documents/file-drawer"
 import type { TargetOption } from "@/components/documents/target-picker"
 import { docHref, docKind, LINK_ICON } from "@/lib/documents"
 import type { DocumentKind } from "@/generated/prisma/enums"
-import { setDocumentArchived } from "../documents/actions"
+import { ConfirmDelete } from "@/components/documents/doc-menu"
 
 export type InboxItem = {
   id: string
@@ -27,7 +26,7 @@ export type InboxItem = {
 /** Captures not yet filed anywhere, as a grid of previews. Tap one to name and file it. */
 export function Inbox({ items, targets, canEdit }: { items: InboxItem[]; targets: TargetOption[]; canEdit: boolean }) {
   const [editing, setEditing] = useState<EditableDoc | null>(null)
-  const [, start] = useTransition()
+  const [deleting, setDeleting] = useState<{ id: string; title: string; isLink: boolean } | null>(null)
   return (
     <>
       <div className="grid grid-cols-2 gap-3 desk:grid-cols-4">
@@ -66,19 +65,8 @@ export function Inbox({ items, targets, canEdit }: { items: InboxItem[]; targets
                       <FolderInput />
                       File
                     </Button>
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      aria-label={`Archive ${d.title}`}
-                      onClick={() =>
-                        start(async () => {
-                          const r = await setDocumentArchived(d.id, true)
-                          if (!r.ok) toast.error(r.error)
-                          else toast("Archived")
-                        })
-                      }
-                    >
-                      <Archive />
+                    <Button size="icon-xs" variant="ghost" aria-label={`Delete ${d.title}`} onClick={() => setDeleting({ id: d.id, title: d.title, isLink: d.isLink })}>
+                      <Trash2 />
                     </Button>
                   </div>
                 ) : null}
@@ -87,6 +75,7 @@ export function Inbox({ items, targets, canEdit }: { items: InboxItem[]; targets
           )
         })}
       </div>
+      {deleting ? <ConfirmDelete open onOpenChange={(o) => !o && setDeleting(null)} doc={deleting} /> : null}
       <FileDrawer doc={editing} targets={targets} onOpenChange={(o) => !o && setEditing(null)} />
     </>
   )

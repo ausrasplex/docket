@@ -212,21 +212,28 @@ enum SpaceKind {
 
 /// A room or area. Nested with parentId, so floor → room works.
 model Space {
-  id          String    @id @default(cuid())
-  householdId String
-  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  propertyId  String
-  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  parentId    String?
-  parent      Space?    @relation("SpaceTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Space[]   @relation("SpaceTree")
-  name        String
-  kind        SpaceKind @default(ROOM)
-  sortOrder   Int       @default(0)
-  notes       String?
-  archivedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  householdId  String
+  household    Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  propertyId   String
+  property     Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       Space?    @relation("SpaceTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Space[]   @relation("SpaceTree")
+  name         String
+  kind         SpaceKind @default(ROOM)
+  sortOrder    Int       @default(0)
+  notes        String?
+  /// a photo shown in place of the room's icon (one of the household's image documents)
+  coverId      String?
+  cover        Document? @relation("SpaceCover", fields: [coverId], references: [id], onDelete: SetNull)
+  /// the square crop of the photo, as fractions of the (rotated) original: { left, top, width, height }
+  coverCrop    Json?
+  /// the cropped copy made from that (512px webp under UPLOAD_DIR); empty means a centred crop of the thumbnail
+  coverCropKey String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   fixtures Fixture[]
   finishes Finish[]
@@ -564,8 +571,9 @@ model Document {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  links DocumentLink[]
-  tags  Tag[]
+  links   DocumentLink[]
+  tags    Tag[]
+  coverOf Space[]        @relation("SpaceCover")
 
   @@index([householdId, kind])
   @@index([householdId, sha256])

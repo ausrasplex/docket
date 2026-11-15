@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
 import { BrandField, Chip, Chips, Section } from "@/components/form-bits"
 import { DocumentRow } from "@/components/documents/document-row"
+import { DocMenu } from "@/components/documents/doc-menu"
 import { FINISH_KINDS, SHEENS, SURFACES, normaliseHex } from "@/lib/finishes"
 import { createFinishes, updateFinish, type FinishInput } from "@/app/(app)/paint/actions"
 import type { FinishRow } from "./finish-types"
@@ -203,7 +204,7 @@ function FinishPhotos({ finish }: { finish: FinishRow }) {
       {finish.docs.length ? (
         <div className="flex flex-col">
           {finish.docs.map((d) => (
-            <DocumentRow key={d.linkId} doc={d.doc} label={d.label} />
+            <DocumentRow key={d.linkId} doc={d.doc} label={d.label} trailing={<DocMenu doc={{ id: d.doc.id, title: d.doc.title, isLink: !!d.doc.url }} onDeleted={() => router.refresh()} />} />
           ))}
         </div>
       ) : null}

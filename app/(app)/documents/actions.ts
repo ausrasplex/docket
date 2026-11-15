@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { logActivity, requireHousehold } from "@/lib/dal"
 import { normaliseUrl } from "@/lib/documents"
+import { atLeast } from "@/lib/roles"
+import { removeStored } from "@/lib/storage"
+import { Prisma } from "@/generated/prisma/client"
 import type { DocumentKind } from "@/generated/prisma/enums"
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
@@ -94,6 +97,34 @@ export async function setDocumentArchived(id: string, archived: boolean): Promis
   await db.document.update({ where: { id }, data: { archivedAt: archived ? new Date() : null } })
   await logActivity(c, { action: archived ? "archived" : "restored", entityType: "Document", entityId: id, summary: `${c.user.name} ${archived ? "archived" : "restored"} “${doc.title}”` })
   refresh()
+  return { ok: true }
+}
+
+/**
+ * Deletes a document for good: the file (and its preview) is removed from storage and it disappears from
+ * everywhere it was filed. Only the person who added it, or an Admin/Owner, can delete it. If it was a room's
+ * photo, the room goes back to its icon.
+ */
+export async function deleteDocument(id: string): Promise<Result> {
+  const c = await requireHousehold("MEMBER")
+  const doc = await ownDoc(c.householdId, id)
+  if (!doc) return { ok: false, error: "That document no longer exists." }
+  if (doc.createdById !== c.user.id && !atLeast(c.role, "ADMIN")) {
+    return { ok: false, error: "Only the person who added it, or an admin, can delete it." }
+  }
+  // rooms using it as their photo lose the photo and its cropped copy
+  const covers = await db.space.findMany({ where: { coverId: id }, select: { id: true, coverCropKey: true } })
+  await db.$transaction([
+    db.space.updateMany({ where: { coverId: id }, data: { coverId: null, coverCrop: Prisma.DbNull, coverCropKey: null } }),
+    db.document.delete({ where: { id } }), // its links go with it
+  ])
+  const files = [doc.storageKey, doc.thumbnailKey, ...covers.map((s) => s.coverCropKey)].filter((k): k is string => !!k)
+  await Promise.all(files.map((k) => removeStored(k).catch(() => {})))
+  await logActivity(c, { action: "deleted", entityType: "Document", entityId: id, summary: `${c.user.name} deleted “${doc.title}”` })
+  refresh()
+  revalidatePath("/fixtures", "layout")
+  revalidatePath("/paint")
+  revalidatePath("/jobs", "layout")
   return { ok: true }
 }
 

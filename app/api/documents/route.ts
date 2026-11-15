@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
+import { Prisma } from "@/generated/prisma/client"
 import { db } from "@/lib/db"
 import { getSession } from "@/lib/dal"
-import { acceptedType, storeFile } from "@/lib/storage"
+import { acceptedType, removeStored, storeFile } from "@/lib/storage"
 import { atLeast } from "@/lib/roles"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { DOC_KINDS } from "@/lib/documents"
@@ -46,6 +47,9 @@ export async function POST(req: Request) {
     break
   }
   const fixtureId = link?.fixtureId ?? null
+  // "asCover" with a spaceId: the first photo becomes the room's photo (shown in place of its icon)
+  const asCover = form.get("asCover") === "1" && !!link?.spaceId
+  const oldCropKey = asCover ? ((await db.space.findUnique({ where: { id: link!.spaceId! }, select: { coverCropKey: true } }))?.coverCropKey ?? null) : null
 
   const created: string[] = []
   const errors: string[] = []
@@ -74,6 +78,11 @@ export async function POST(req: Request) {
         },
       })
       created.push(doc.id)
+      if (asCover && created.length === 1 && stored.thumbnailKey) {
+        // a new photo starts with a centred crop; the old photo's cropped copy goes
+        await db.space.update({ where: { id: link!.spaceId! }, data: { coverId: doc.id, coverCrop: Prisma.DbNull, coverCropKey: null } })
+        if (oldCropKey) await removeStored(oldCropKey)
+      }
     } catch (e) {
       errors.push(`${file.name}: ${e instanceof Error ? e.message : "couldn't be saved."}`)
     }

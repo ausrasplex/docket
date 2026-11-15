@@ -1,24 +1,30 @@
 "use client"
 
 import { useMemo, useState, useTransition } from "react"
-import { Archive, ArchiveRestore, MoreHorizontal, Pencil } from "lucide-react"
+import { Archive, ArchiveRestore, Camera, MoreHorizontal, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import type { SpaceKind } from "@/generated/prisma/enums"
 import { setSpaceArchived } from "../actions"
 import { SpaceDrawer } from "../space-drawer"
+import { RoomPhotoDrawer, type PhotoRoom, type RoomPhoto } from "./room-photo"
 
 export function RoomActions({
   room,
   archived,
   floors,
+  photoRoom,
+  photos,
 }: {
   room: { id: string; name: string; kind: SpaceKind; parentId: string | null; notes: string }
   archived: boolean
   floors: { id: string; name: string }[]
+  photoRoom: PhotoRoom
+  photos: RoomPhoto[]
 }) {
   const [open, setOpen] = useState(false)
+  const [photoOpen, setPhotoOpen] = useState(false)
   const [, start] = useTransition()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initial = useMemo(() => ({ ...room }), [room.id, room.name, room.kind, room.parentId, room.notes])
@@ -34,6 +40,10 @@ export function RoomActions({
           <DropdownMenuItem onSelect={() => setOpen(true)}>
             <Pencil />
             Edit Room
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setPhotoOpen(true)}>
+            <Camera />
+            Room Photo
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -52,6 +62,7 @@ export function RoomActions({
         </DropdownMenuContent>
       </DropdownMenu>
       <SpaceDrawer open={open} onOpenChange={setOpen} initial={initial} floors={floors} />
+      <RoomPhotoDrawer open={photoOpen} onOpenChange={setPhotoOpen} room={photoRoom} photos={photos} />
     </>
   )
 }

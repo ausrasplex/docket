@@ -7,6 +7,7 @@ import { db } from "@/lib/db"
 import { requireHousehold } from "@/lib/dal"
 import { atLeast } from "@/lib/roles"
 import { RoomsList } from "./rooms-list"
+import { roomPhotoSrc } from "@/components/rooms/room-tile"
 
 export default function RoomsPage() {
   return (
@@ -28,6 +29,7 @@ async function Rooms() {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     include: {
       _count: { select: { fixtures: { where: { archivedAt: null, parentId: null } }, finishes: { where: { archivedAt: null } } } },
+      cover: { select: { id: true, archivedAt: true } },
       finishes: { where: { archivedAt: null, hex: { not: null } }, select: { hex: true }, take: 3 },
     },
   })
@@ -50,6 +52,7 @@ async function Rooms() {
         fixtures: s._count.fixtures,
         finishes: s._count.finishes,
         swatches: s.finishes.map((f) => f.hex!),
+        photo: roomPhotoSrc(s),
       }))}
     />
   )

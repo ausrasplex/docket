@@ -2,12 +2,12 @@
 
 import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Archive, Camera, Check, FileUp, Globe, Inbox, Loader2, MoreHorizontal, Pencil, Plus, Unlink } from "lucide-react"
+import { Camera, Check, FileUp, Globe, Inbox, Loader2, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Drawer, FieldLabel } from "@/components/drawer"
 import { DocumentRow, type DocLike } from "@/components/documents/document-row"
 import { FileDrawer, type EditableDoc } from "@/components/documents/file-drawer"
@@ -15,7 +15,8 @@ import { AddLinkDrawer } from "@/components/documents/add-link-drawer"
 import { docKind, LINK_ICON } from "@/lib/documents"
 import { PART_ICON } from "@/lib/fixtures"
 import type { DocumentKind } from "@/generated/prisma/enums"
-import { fileTo, setDocumentArchived, unlink, type Target } from "@/app/(app)/documents/actions"
+import { fileTo, unlink, type Target } from "@/app/(app)/documents/actions"
+import { DocMenu } from "./doc-menu"
 
 export type DocGroup = {
   target: Target
@@ -62,39 +63,21 @@ export function DocGroups({ groups, inbox, canEdit }: { groups: DocGroup[]; inbo
                   label={d.label}
                   trailing={
                     canEdit ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon-sm" aria-label={`Options for ${d.doc.title}`}>
-                            <MoreHorizontal />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuItem
-                            onSelect={() =>
-                              setEditing({
-                                id: d.doc.id,
-                                title: d.doc.title,
-                                kind: d.doc.kind,
-                                notes: d.doc.notes,
-                                documentDate: d.doc.documentDate ? d.doc.documentDate.toISOString().slice(0, 10) : null,
-                                isLink: !!d.doc.url,
-                              })
-                            }
-                          >
-                            <Pencil />
-                            Edit Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => act(() => unlink(d.linkId), `Removed from ${g.name}`)}>
-                            <Unlink />
-                            Remove From {g.removeLabel ?? (g.isPart ? "Part" : "Item")}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem variant="destructive" onSelect={() => act(() => setDocumentArchived(d.doc.id, true), "Archived")}>
-                            <Archive />
-                            Archive
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <DocMenu
+                        doc={{ id: d.doc.id, title: d.doc.title, isLink: !!d.doc.url }}
+                        onEdit={() =>
+                          setEditing({
+                            id: d.doc.id,
+                            title: d.doc.title,
+                            kind: d.doc.kind,
+                            notes: d.doc.notes,
+                            documentDate: d.doc.documentDate ? d.doc.documentDate.toISOString().slice(0, 10) : null,
+                            isLink: !!d.doc.url,
+                          })
+                        }
+                        onRemove={() => act(() => unlink(d.linkId), `Removed from ${g.name}`)}
+                        removeLabel={`Remove From ${g.removeLabel ?? (g.isPart ? "Part" : "Item")}`}
+                      />
                     ) : null
                   }
                 />

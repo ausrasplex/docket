@@ -3,9 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { ChevronRight, Plus } from "lucide-react"
-import { cn } from "cn"
 import { Button } from "@/components/ui/button"
-import { spaceKind } from "@/lib/spaces"
+import { RoomTile } from "@/components/rooms/room-tile"
 import { plural } from "@/lib/format"
 import type { SpaceKind } from "@/generated/prisma/enums"
 import { SpaceDrawer, type SpaceDraft } from "./space-drawer"
@@ -18,9 +17,9 @@ export type RoomCard = {
   fixtures: number
   finishes: number
   swatches: string[]
+  photo: string | null
 }
 
-const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
 const BLANK: SpaceDraft = { name: "", kind: "ROOM", parentId: null, notes: "" }
 
 export function RoomsList({ rooms, canEdit }: { rooms: RoomCard[]; canEdit: boolean }) {
@@ -57,12 +56,9 @@ export function RoomsList({ rooms, canEdit }: { rooms: RoomCard[]; canEdit: bool
           ) : null}
           <div className="grid grid-cols-1 gap-3 desk:grid-cols-3">
             {g.rooms.map((r) => {
-              const k = spaceKind(r.kind)
               return (
                 <Link key={r.id} href={`/rooms/${r.id}`} className="lift group flex items-center gap-3.5 rounded-3xl bg-surface p-4">
-                  <span className={cn("flex size-12 flex-none items-center justify-center rounded-2xl text-on-a", TONE[k.tone])}>
-                    <k.icon className="size-6" />
-                  </span>
+                  <RoomTile kind={r.kind} src={r.photo} className="size-12" />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="truncate text-[15px] font-bold">{r.name}</span>
                     <span className="truncate text-xs font-medium text-muted-foreground">

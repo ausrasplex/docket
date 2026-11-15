@@ -1,6 +1,6 @@
 import "server-only"
 import { createHash, randomBytes } from "node:crypto"
-import { mkdir, readFile, writeFile, stat } from "node:fs/promises"
+import { mkdir, readFile, rm, writeFile, stat } from "node:fs/promises"
 import path from "node:path"
 import sharp from "sharp"
 
@@ -83,4 +83,17 @@ export async function readStored(key: string) {
   const p = resolveKey(key)
   const [data, s] = await Promise.all([readFile(/*turbopackIgnore: true*/ p), stat(/*turbopackIgnore: true*/ p)])
   return { data, mtime: s.mtime }
+}
+
+/** Saves a file Docket made itself (e.g. a cropped room photo) next to the household's uploads. */
+export async function storeDerived(householdId: string, buf: Buffer, ext: string) {
+  const key = `${householdId}/derived/${randomBytes(12).toString("base64url")}.${ext}`
+  await mkdir(/*turbopackIgnore: true*/ path.dirname(resolveKey(key)), { recursive: true })
+  await writeFile(/*turbopackIgnore: true*/ resolveKey(key), buf, { flag: "wx" })
+  return key
+}
+
+/** Removes a file Docket made itself. Missing files are fine (already gone). */
+export async function removeStored(key: string) {
+  await rm(/*turbopackIgnore: true*/ resolveKey(key), { force: true })
 }

@@ -14,6 +14,7 @@ import { atLeast } from "@/lib/roles"
 import { fileTargets } from "@/lib/targets"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { AddLink } from "./add-link"
+import { DocMenu } from "@/components/documents/doc-menu"
 
 export default function DocumentsPage({ searchParams }: PageProps<"/documents">) {
   return (
@@ -52,6 +53,7 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
     db.document.groupBy({ by: ["kind"], where: base, _count: true }),
     fileTargets(c.householdId, c.property.id),
   ])
+  const canEdit = atLeast(c.role, "MEMBER")
   const total = counts.reduce((a, x) => a + x._count, 0)
   const chips = DOC_KINDS.filter((k) => counts.some((x) => x.kind === k.id))
 
@@ -87,7 +89,14 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
                   return [place, l.label].filter(Boolean).join(" · ")
                 })
                 .filter(Boolean)
-              return <DocumentRow key={d.id} doc={d} label={where.length ? where.join(", ") : "Inbox"} />
+              return (
+                <DocumentRow
+                  key={d.id}
+                  doc={d}
+                  label={where.length ? where.join(", ") : "Inbox"}
+                  trailing={canEdit ? <DocMenu doc={{ id: d.id, title: d.title, isLink: !!d.url }} /> : null}
+                />
+              )
             })}
           </CardContent>
         </Card>

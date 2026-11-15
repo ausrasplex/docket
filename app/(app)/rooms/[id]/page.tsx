@@ -2,7 +2,6 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ChevronLeft, ChevronRight, FileText, Hammer, Lamp, Paintbrush, Plus } from "lucide-react"
-import { cn } from "cn"
 import { PageBody } from "@/components/shell/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -14,10 +13,12 @@ import { spaceKind } from "@/lib/spaces"
 import { date, money, plural } from "@/lib/format"
 import { jobStatus } from "@/lib/jobs"
 import { RoomActions } from "./room-actions"
+import { DocMenu } from "@/components/documents/doc-menu"
+import { RoomPhotoButton } from "./room-photo"
+import { RoomTile, roomPhotoSrc } from "@/components/rooms/room-tile"
 import { FinishList } from "@/components/finishes/finish-list"
 import { loadFinishes } from "@/lib/finish-rows"
 
-const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
 
 export default function RoomPage({ params }: PageProps<"/rooms/[id]">) {
   return (
@@ -40,6 +41,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
     where: { id, householdId: c.householdId },
     include: {
       parent: { select: { id: true, name: true } },
+      cover: { select: { id: true, archivedAt: true } },
       children: { where: { archivedAt: null }, select: { id: true, name: true, kind: true }, orderBy: { sortOrder: "asc" } },
       fixtures: {
         where: { archivedAt: null, parentId: null },
@@ -74,6 +76,10 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
     }),
   ])
   const canEdit = atLeast(c.role, "MEMBER")
+  // an archived photo no longer counts as the room's photo
+  const coverId = room.cover && !room.cover.archivedAt ? room.cover.id : null
+  const photos = room.links.filter((l) => l.document.thumbnailKey).map((l) => ({ id: l.document.id, title: l.document.title }))
+  const photoRoom = { id: room.id, name: room.name, kind: room.kind, coverId, src: roomPhotoSrc(room) }
 
   return (
     <>
@@ -88,6 +94,8 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
               room={{ id: room.id, name: room.name, kind: room.kind, parentId: room.parentId, notes: room.notes ?? "" }}
               archived={!!room.archivedAt}
               floors={floors}
+              photoRoom={photoRoom}
+              photos={photos}
             />
           ) : null}
         </div>
@@ -98,9 +106,7 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
         ) : null}
 
         <div className="flex items-center gap-3">
-          <span className={cn("flex size-12 items-center justify-center rounded-2xl text-on-a", TONE[k.tone])}>
-            <k.icon className="size-6" />
-          </span>
+          {canEdit ? <RoomPhotoButton room={photoRoom} photos={photos} /> : <RoomTile kind={room.kind} src={photoRoom.src} className="size-16" />}
           <div className="flex flex-col">
             <span className="text-sm font-bold">{k.label}</span>
             <span className="text-xs font-medium text-muted-foreground">
@@ -224,7 +230,14 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
           </CardHeader>
           <CardContent className="flex flex-col">
             {room.links.length ? (
-              room.links.map((l) => <DocumentRow key={l.id} doc={l.document} label={l.label} />)
+              room.links.map((l) => (
+                <DocumentRow
+                  key={l.id}
+                  doc={l.document}
+                  label={l.label}
+                  trailing={canEdit ? <DocMenu doc={{ id: l.document.id, title: l.document.title, isLink: !!l.document.url }} /> : null}
+                />
+              ))
             ) : (
               <Empty icon={<FileText className="size-5" />} text="Nothing filed here yet. Use Capture to photograph something and file it to this room." />
             )}
