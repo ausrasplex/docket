@@ -8,8 +8,16 @@ import { findUsableInvite } from "@/lib/invites"
 
 export const INVITE_HEADER = "x-docket-invite"
 
+// The address in BETTER_AUTH_URL is trusted automatically. List any other addresses people open Docket on
+// (e.g. both http://192.168.1.10:3000 and https://docket.example.com), comma-separated.
+const extraOrigins = (process.env.DOCKET_TRUSTED_ORIGINS ?? "")
+  .split(",")
+  .map((s) => s.trim().replace(/\/$/, ""))
+  .filter(Boolean)
+
 export const auth = betterAuth({
   appName: "Docket",
+  trustedOrigins: extraOrigins,
   database: prismaAdapter(db, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,

@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- Unraid template for Docket. Copy to /boot/config/plugins/dockerMan/templates-user/my-Docket.xml, then
+     Docker › Add Container › Template: Docket. See unraid/README.md. -->
+<Container version="2">
+  <Name>Docket</Name>
+  <Repository>ghcr.io/ausrasplex/docket:latest</Repository>
+  <Registry>https://github.com/ausrasplex/docket/pkgs/container/docket</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/ausrasplex/docket/issues</Support>
+  <Project>https://github.com/ausrasplex/docket</Project>
+  <Overview>Docket keeps a household's home records in one place: rooms, fixtures with their manuals and warranties, paint colours, jobs, receipts and tradespeople. Several people per household, joined by invite link. Needs a PostgreSQL database.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/ausrasplex/docket/HEAD/unraid/docket.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/ausrasplex/docket/HEAD/unraid/docket-icon.png</Icon>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <Config Name="Web UI port" Target="3000" Default="3000" Mode="tcp" Description="The port Docket is opened on." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/docket" Mode="rw" Description="Uploaded manuals, receipts and photos (in uploads/). Back this up along with the database." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/docket</Config>
+  <Config Name="Database URL" Target="DATABASE_URL" Default="" Description="Docket's PostgreSQL database: postgresql://USER:PASSWORD@UNRAID-IP:5432/docket?schema=public (create an empty docket database first)." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Secret key" Target="BETTER_AUTH_SECRET" Default="" Description="32 or more random characters (make one with: openssl rand -base64 32). Signs sign-in sessions; changing it signs everyone out." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Docket address" Target="BETTER_AUTH_URL" Default="" Description="The address people open Docket on, used for sign-in and invite links, for example http://192.168.1.10:3000 or https://docket.example.com." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Other addresses" Target="DOCKET_TRUSTED_ORIGINS" Default="" Description="Any other addresses Docket is opened on, comma-separated (for example the LAN address when the main one is a domain)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Time zone" Target="TZ" Default="Australia/Melbourne" Description="Your time zone." Type="Variable" Display="always" Required="false" Mask="false">Australia/Melbourne</Config>
+</Container>
