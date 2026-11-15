@@ -1,0 +1,193 @@
+import { Suspense } from "react"
+import Link from "next/link"
+import { notFound } from "next/navigation"
+import { ChevronLeft, FileText, Lamp, Paintbrush } from "lucide-react"
+import { cn } from "cn"
+import { PageBody } from "@/components/shell/page-header"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { DocumentRow } from "@/components/documents/document-row"
+import { db } from "@/lib/db"
+import { requireHousehold } from "@/lib/dal"
+import { atLeast } from "@/lib/roles"
+import { spaceKind } from "@/lib/spaces"
+import { RoomActions } from "./room-actions"
+
+const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
+
+export default function RoomPage({ params }: PageProps<"/rooms/[id]">) {
+  return (
+    <Suspense
+      fallback={
+        <PageBody>
+          <Skeleton className="mt-6 h-40 rounded-3xl" />
+        </PageBody>
+      }
+    >
+      <Room params={params} />
+    </Suspense>
+  )
+}
+
+async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) {
+  const { id } = await params
+  const c = await requireHousehold()
+  const room = await db.space.findFirst({
+    where: { id, householdId: c.householdId },
+    include: {
+      parent: { select: { id: true, name: true } },
+      children: { where: { archivedAt: null }, select: { id: true, name: true, kind: true }, orderBy: { sortOrder: "asc" } },
+      fixtures: {
+        where: { archivedAt: null, parentId: null },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, model: true, brand: { select: { name: true } }, _count: { select: { parts: true, links: true } } },
+      },
+      finishes: { where: { archivedAt: null }, orderBy: { surface: "asc" }, include: { brand: { select: { name: true } } } },
+      links: {
+        where: { document: { archivedAt: null } },
+        orderBy: { createdAt: "desc" },
+        include: { document: true },
+      },
+    },
+  })
+  if (!room) notFound()
+  const k = spaceKind(room.kind)
+  const floors = await db.space.findMany({
+    where: { householdId: c.householdId, propertyId: room.propertyId, kind: "FLOOR", archivedAt: null },
+    select: { id: true, name: true },
+  })
+  const canEdit = atLeast(c.role, "MEMBER")
+
+  return (
+    <>
+      <div className="sticky top-0 z-20 -mx-4 mb-2 border-b border-line bg-[color-mix(in_srgb,var(--bg)_72%,transparent)] px-4 py-2.5 backdrop-blur-[16px] desk:-mx-8 desk:px-8 desk:py-3.5">
+        <div className="mx-auto flex min-h-11 max-w-[1100px] items-center gap-2.5">
+          <Link href="/rooms" aria-label="Back to rooms" className="flex size-11 flex-none items-center justify-center rounded-full bg-surface hover:bg-surface2">
+            <ChevronLeft className="size-5" />
+          </Link>
+          <h1 className="min-w-0 flex-1 truncate">{room.name}</h1>
+          {canEdit ? (
+            <RoomActions
+              room={{ id: room.id, name: room.name, kind: room.kind, parentId: room.parentId, notes: room.notes ?? "" }}
+              archived={!!room.archivedAt}
+              floors={floors}
+            />
+          ) : null}
+        </div>
+      </div>
+      <PageBody>
+        {room.archivedAt ? (
+          <p className="rounded-[14px] bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">This room is archived. Restore it from the ⋯ menu.</p>
+        ) : null}
+
+        <div className="flex items-center gap-3">
+          <span className={cn("flex size-12 items-center justify-center rounded-2xl text-on-a", TONE[k.tone])}>
+            <k.icon className="size-6" />
+          </span>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold">{k.label}</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {room.parent ? (
+                <>
+                  On <Link href={`/rooms/${room.parent.id}`} className="font-semibold text-ink hover:underline">{room.parent.name}</Link>
+                </>
+              ) : (
+                c.property.name
+              )}
+            </span>
+          </div>
+        </div>
+        {room.notes ? <p className="max-w-prose text-sm whitespace-pre-line">{room.notes}</p> : null}
+
+        {room.kind === "FLOOR" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Rooms on This Floor</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col">
+              {room.children.length ? (
+                room.children.map((ch) => (
+                  <Link key={ch.id} href={`/rooms/${ch.id}`} className="border-t border-line py-3 text-[15px] font-bold first:border-t-0 hover:underline">
+                    {ch.name}
+                  </Link>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">Edit a room and choose this floor to list it here.</p>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 items-start gap-5 desk:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Fixtures</CardTitle>
+                <CardDescription>Appliances, taps, lights and systems in this room.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col">
+                {room.fixtures.length ? (
+                  room.fixtures.map((f) => (
+                    <div key={f.id} className="flex items-center gap-3 border-t border-line py-3 first:border-t-0">
+                      <span className="flex size-11 flex-none items-center justify-center rounded-full bg-t1">
+                        <Lamp className="size-5" />
+                      </span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate text-[15px] font-bold">{f.name}</span>
+                        <span className="truncate text-xs text-muted-foreground">{[f.brand?.name, f.model].filter(Boolean).join(" ") || "No model yet"}</span>
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <Empty icon={<Lamp className="size-5" />} text="No fixtures yet. Adding fixtures comes in the next build step." />
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Paint and Finishes</CardTitle>
+                <CardDescription>Colours and surfaces, with where the leftover tin is.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col">
+                {room.finishes.length ? (
+                  room.finishes.map((f) => (
+                    <div key={f.id} className="flex items-center gap-3 border-t border-line py-3 first:border-t-0">
+                      <span className="size-11 flex-none rounded-full border border-line" style={{ background: f.hex ?? "var(--surface2)" }} />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate text-[15px] font-bold">{f.colourName ?? f.kind}</span>
+                        <span className="truncate text-xs text-muted-foreground">{[f.brand?.name, f.colourCode, f.sheen].filter(Boolean).join(" · ")}</span>
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <Empty icon={<Paintbrush className="size-5" />} text="No paint or finishes yet." />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Documents and Photos</CardTitle>
+            <CardDescription>Filed to this room from Capture or Documents.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col">
+            {room.links.length ? (
+              room.links.map((l) => <DocumentRow key={l.id} doc={l.document} label={l.label} />)
+            ) : (
+              <Empty icon={<FileText className="size-5" />} text="Nothing filed here yet. Use Capture to photograph something and file it to this room." />
+            )}
+          </CardContent>
+        </Card>
+      </PageBody>
+    </>
+  )
+}
+
+function Empty({ icon, text }: { icon: React.ReactNode; text: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-surface2 px-4 py-3.5 text-sm text-muted-foreground">
+      {icon}
+      {text}
+    </div>
+  )
+}

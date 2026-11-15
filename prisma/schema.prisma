@@ -1,0 +1,640 @@
+// Docket: a household's rooms, fixtures, manuals, finishes, jobs and receipts.
+//
+// Shape of the data:
+//   Household ─┬─ Membership ── User            (many users per household, roles)
+//              ├─ Invite                          (shareable invite links, no email)
+//              └─ Property ── Space (rooms, nested)
+//                     ├─ Fixture ── Fixture (parts: indoor unit, outdoor unit, remote …)
+//                     │     └─ Brand (maker: website, support site, phone; shared)
+//                     ├─ Finish   (paint colour, tiles, flooring per surface)
+//                     ├─ Job ── Expense
+//                     └─ Contact
+//   Document (a stored file OR a web link) ── DocumentLink ── any of the above
+//
+// Conventions: every household-owned row carries householdId (simple, safe scoping in queries);
+// nothing is hard-deleted (archivedAt, restore later); money is Decimal(12,2) in AUD.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Accounts and households ─────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique // a login name only; Docket never sends email
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Folio-style appearance, saved per user
+  theme String @default("lilac")
+  mode  String @default("light")
+
+  // the household shown when signing in (users can belong to several)
+  activeHouseholdId String?
+
+  sessions       Session[]
+  accounts       Account[]
+  memberships    Membership[]
+  invitesCreated Invite[]     @relation("InviteCreatedBy")
+  invitesUsed    InviteUse[]
+  activity       Activity[]
+
+  @@map("user")
+}
+
+// Better Auth tables (session, account, verification): field names follow Better Auth's schema.
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String? // password hash for email + password sign-in
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+enum Role {
+  OWNER // everything, including deleting the household and transferring ownership
+  ADMIN // manage members and invites, plus everything a member can do
+  MEMBER // add and edit records
+  VIEWER // read and export only (an accountant, a property manager)
+}
+
+model Household {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  invites     Invite[]
+  properties  Property[]
+  spaces      Space[]
+  fixtures    Fixture[]
+  finishes    Finish[]
+  contacts    Contact[]
+  brands      Brand[]
+  jobs        Job[]
+  expenses    Expense[]
+  documents   Document[]
+  tags        Tag[]
+  activity    Activity[]
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        Role      @default(MEMBER)
+  createdAt   DateTime  @default(now())
+
+  @@unique([householdId, userId])
+  @@index([userId])
+}
+
+/// A shareable invite link (/invite/<token>). Only a hash of the token is stored.
+/// Also used for one-time password-reset links (kind RESET), since Docket sends no email.
+model Invite {
+  id          String     @id @default(cuid())
+  householdId String
+  household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  kind        InviteKind @default(JOIN)
+  tokenHash   String     @unique
+  role        Role       @default(MEMBER) // role granted on joining (JOIN)
+  resetUserId String? // the account whose password the link resets (RESET)
+  maxUses     Int        @default(1)
+  uses        Int        @default(0)
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdById String
+  createdBy   User       @relation("InviteCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime   @default(now())
+
+  usedBy InviteUse[]
+
+  @@index([householdId])
+}
+
+enum InviteKind {
+  JOIN
+  RESET
+}
+
+model InviteUse {
+  id       String   @id @default(cuid())
+  inviteId String
+  invite   Invite   @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usedAt   DateTime @default(now())
+
+  @@unique([inviteId, userId])
+}
+
+// ───────────────────────── The house ─────────────────────────
+
+model Property {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String // "Home", "Rental on Smith St"
+  address     String?
+  purchasedAt DateTime? @db.Date
+  notes       String?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  spaces   Space[]
+  fixtures Fixture[]
+  jobs     Job[]
+  links    DocumentLink[]
+
+  @@index([householdId])
+}
+
+enum SpaceKind {
+  ROOM
+  FLOOR // a level that groups rooms
+  EXTERIOR // yard, roof, facade
+  GARAGE
+  WHOLE_HOUSE // things that belong to the house, not a room (hot water, switchboard)
+  OTHER
+}
+
+/// A room or area. Nested with parentId, so floor → room works.
+model Space {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  propertyId  String
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  parentId    String?
+  parent      Space?    @relation("SpaceTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Space[]   @relation("SpaceTree")
+  name        String
+  kind        SpaceKind @default(ROOM)
+  sortOrder   Int       @default(0)
+  notes       String?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  fixtures Fixture[]
+  finishes Finish[]
+  jobs     JobSpace[]
+  links    DocumentLink[]
+
+  @@index([householdId])
+  @@index([propertyId])
+}
+
+enum FixtureCategory {
+  APPLIANCE
+  HEATING_COOLING
+  PLUMBING
+  TAPWARE
+  LIGHTING
+  ELECTRICAL
+  HOT_WATER
+  SECURITY
+  NETWORK
+  COMPUTER
+  ENTERTAINMENT
+  WINDOW_COVERING
+  JOINERY
+  OUTDOOR
+  OTHER
+}
+
+/// Anything in the house worth keeping records for: an appliance, a tap, a light, a system, a computer.
+///
+/// Items can have PARTS (parentId), each a Fixture of its own with its own brand, model, serial,
+/// warranty and manuals. Examples:
+///   Split-system air conditioner → Indoor unit, Outdoor unit, Remote
+///   Custom PC → Motherboard, GPU, CPU cooler, Power supply, Case
+/// Documents can attach to the whole item or to one part (see DocumentLink).
+model Fixture {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  propertyId  String
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  spaceId     String? // a part normally inherits its parent's room; set it when it differs (the outdoor unit)
+  space       Space?    @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  parentId    String?
+  parent      Fixture?  @relation("FixtureParts", fields: [parentId], references: [id], onDelete: Cascade)
+  parts       Fixture[] @relation("FixtureParts")
+  sortOrder   Int       @default(0) // order of parts within an item
+
+  name     String // "Ducted air conditioner", or for a part: "Outdoor unit"
+  category FixtureCategory @default(OTHER)
+  brandId  String?
+  brand    Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  model    String?
+  serial   String?
+
+  // this exact product on the maker's website; the item page falls back to the brand's support site
+  productUrl String?
+
+  purchasedAt       DateTime? @db.Date
+  installedAt       DateTime? @db.Date
+  warrantyExpiresAt DateTime? @db.Date
+  installerId       String?
+  installer         Contact?  @relation(fields: [installerId], references: [id], onDelete: SetNull)
+
+  // for the insurance and sale exports
+  purchasePrice    Decimal? @db.Decimal(12, 2)
+  replacementValue Decimal? @db.Decimal(12, 2)
+  includedInSale   Boolean  @default(true) // fixed to the house (true) or contents you'd take with you (false)
+
+  notes       String?
+  archivedAt  DateTime?
+  createdById String?
+  updatedById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  links DocumentLink[]
+  tags  Tag[]
+
+  @@index([householdId])
+  @@index([spaceId])
+  @@index([parentId])
+  @@index([warrantyExpiresAt])
+}
+
+enum Surface {
+  WALLS
+  FEATURE_WALL
+  CEILING
+  TRIM
+  DOORS
+  WINDOWS
+  FLOOR
+  SPLASHBACK
+  CABINETRY
+  BENCHTOP
+  EXTERIOR
+  OTHER
+}
+
+enum FinishKind {
+  PAINT
+  STAIN
+  TILE
+  FLOORING
+  WALLPAPER
+  STONE
+  LAMINATE
+  OTHER
+}
+
+/// A manufacturer or brand (Daikin, ASUS, Dulux), entered once and shared by every item and finish
+/// that uses it, so its support site and phone number live in one place.
+model Brand {
+  id           String    @id @default(cuid())
+  householdId  String
+  household    Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name         String
+  website      String? // main site
+  supportUrl   String? // support, manuals or warranty-claim page
+  supportPhone String?
+  supportEmail String?
+  notes        String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  fixtures Fixture[]
+  finishes Finish[]
+
+  @@unique([householdId, name])
+}
+
+/// A paint colour or other finish on one surface of a room.
+model Finish {
+  id          String     @id @default(cuid())
+  householdId String
+  household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  spaceId     String
+  space       Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  surface     Surface    @default(WALLS)
+  surfaceNote String? // "wall behind the bed"
+  kind        FinishKind @default(PAINT)
+
+  brandId    String? // Dulux, Taubmans, Haymes
+  brand      Brand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  product    String? // Wash&Wear, Aquanamel
+  productUrl String? // the colour's page on the brand's site
+  colourName String? // "Natural White"
+  colourCode String? // "SW1F1"
+  hex        String? // swatch shown in the app, e.g. "#f2efe6" (approximate)
+  sheen      String? // Low sheen, Semi-gloss…
+
+  appliedAt        DateTime? @db.Date
+  jobId            String?
+  job              Job?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  leftoverLocation String? // "Garage shelf, 2 L tin"
+  notes            String?
+  archivedAt       DateTime?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  links DocumentLink[]
+
+  @@index([householdId])
+  @@index([spaceId])
+}
+
+// ───────────────────────── Work and money ─────────────────────────
+
+model Contact {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String
+  business    String?
+  trade       String? // Electrician, Plumber, Painter…
+  phone       String?
+  email       String?
+  website     String?
+  abn         String?
+  licence     String? // trade licence number
+  notes       String?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  jobs      Job[]
+  expenses  Expense[]
+  installed Fixture[]
+  links     DocumentLink[]
+
+  @@index([householdId])
+}
+
+enum JobStatus {
+  PLANNED
+  QUOTED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+/// Work done on the house: a renovation, a repair, an installation.
+model Job {
+  id           String    @id @default(cuid())
+  householdId  String
+  household    Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  propertyId   String
+  property     Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  status       JobStatus @default(DONE)
+  startedAt    DateTime? @db.Date
+  finishedAt   DateTime? @db.Date
+  contactId    String?
+  contact      Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  permitNumber String? // council approval or permit
+  notes        String?
+  archivedAt   DateTime?
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  spaces   JobSpace[]
+  expenses Expense[]
+  finishes Finish[]
+  links    DocumentLink[]
+  tags     Tag[]
+
+  @@index([householdId])
+}
+
+model JobSpace {
+  jobId   String
+  job     Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  spaceId String
+  space   Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@id([jobId, spaceId])
+}
+
+/// How a cost is treated in the tax / CGT export (check with your accountant).
+enum ExpenseClass {
+  CAPITAL_IMPROVEMENT // can count toward the CGT cost base
+  REPAIR_MAINTENANCE
+  FURNISHING
+  OTHER
+}
+
+model Expense {
+  id             String       @id @default(cuid())
+  householdId    String
+  household      Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  jobId          String?
+  job            Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  contactId      String?
+  contact        Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  vendor         String?
+  description    String?
+  date           DateTime     @db.Date
+  amount         Decimal      @db.Decimal(12, 2) // total including GST
+  gst            Decimal?     @db.Decimal(12, 2)
+  classification ExpenseClass @default(OTHER)
+  category       String? // Materials, Labour, Appliance…
+  paymentMethod  String?
+  notes          String?
+  archivedAt     DateTime?
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  links DocumentLink[]
+
+  @@index([householdId, date])
+  @@index([jobId])
+}
+
+// ───────────────────────── Documents and links ─────────────────────────
+
+enum DocumentKind {
+  MANUAL // user, installation or service manual
+  QUICK_START
+  SPEC_SHEET
+  WARRANTY
+  RECEIPT
+  INVOICE
+  QUOTE
+  CERTIFICATE // compliance: electrical, plumbing, waterproofing…
+  PLAN // drawings, floor plans
+  PHOTO
+  SUPPORT // a support or product page
+  SOFTWARE // drivers, firmware, apps
+  OTHER
+}
+
+/// One manual, receipt, photo or web link.
+///
+/// It is EITHER a stored file (storageKey set) OR a web link (url set), e.g. a GPU's driver page
+/// or the manufacturer's online manual. An item can have any number of them, and one document can
+/// be linked to several records (a receipt to both the job and the dishwasher it paid for).
+///
+/// A document with no links yet is in the capture inbox: photographed on a phone, still to be filed.
+model Document {
+  id          String       @id @default(cuid())
+  householdId String
+  household   Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  kind        DocumentKind @default(OTHER)
+  title       String
+
+  // a stored file …
+  storageKey   String? @unique // path under UPLOAD_DIR
+  fileName     String? // original name
+  mimeType     String?
+  sizeBytes    Int?
+  sha256       String? // spot duplicate uploads
+  pageCount    Int?
+  thumbnailKey String?
+
+  // … or a web link
+  url String?
+
+  documentDate DateTime? @db.Date // date on the receipt or certificate
+  issuer       String? // who issued a certificate or warranty
+  expiresAt    DateTime? @db.Date // certificates and warranties
+  text         String? // extracted text for search (PDF text, later OCR)
+  notes        String?
+  archivedAt   DateTime?
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  links DocumentLink[]
+  tags  Tag[]
+
+  @@index([householdId, kind])
+  @@index([householdId, sha256])
+}
+
+/// Attaches a document to exactly one record. Set exactly one of the target ids (checked in the app).
+/// `label` says what it's for when an item has several: "Indoor unit", "Remote", "Installation".
+model DocumentLink {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  label      String?
+  sortOrder  Int      @default(0)
+
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  spaceId    String?
+  space      Space?    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  fixtureId  String?
+  fixture    Fixture?  @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  finishId   String?
+  finish     Finish?   @relation(fields: [finishId], references: [id], onDelete: Cascade)
+  jobId      String?
+  job        Job?      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  expenseId  String?
+  expense    Expense?  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  contactId  String?
+  contact    Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([documentId, fixtureId])
+  @@unique([documentId, spaceId])
+  @@unique([documentId, jobId])
+  @@unique([documentId, expenseId])
+  @@index([fixtureId])
+  @@index([spaceId])
+  @@index([jobId])
+  @@index([expenseId])
+}
+
+// ───────────────────────── Tags and activity ─────────────────────────
+
+model Tag {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String
+  color       String    @default("grey") // Folio category colours: grey, red, orange … rose
+
+  fixtures  Fixture[]
+  jobs      Job[]
+  documents Document[]
+
+  @@unique([householdId, name])
+}
+
+/// The household's activity feed: who added or changed what.
+model Activity {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String // created, updated, archived, restored, linked, joined…
+  entityType  String // Fixture, Document, Job…
+  entityId    String
+  summary     String // "added the manual 'Remote' to Daikin split system"
+  createdAt   DateTime  @default(now())
+
+  @@index([householdId, createdAt])
+}

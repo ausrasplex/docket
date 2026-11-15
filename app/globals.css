@@ -1,26 +1,242 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Docket design system: copied from Folio (see ../folio/docs/SPEC.md, "Design system").
+ * Every component reads the Folio tokens below; themes only swap their values.
+ * Themes: data-theme="lilac|ocean|forest|sunset|graphite" on <html>; mode: class "dark" on <html>.
+ * The shadcn variables (--background, --primary, …) are mapped onto the Folio tokens at the bottom,
+ * so stock shadcn/Radix components pick up the theme too.
+ */
+
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Folio tokens as Tailwind colours: bg-surface, text-ink, bg-a1, bg-hero, ring-sel … */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-hero: var(--hero);
+  --color-hero-ink: var(--heroInk);
+  --color-hero-muted: var(--heroMuted);
+  --color-a1: var(--a1);
+  --color-a2: var(--a2);
+  --color-a3: var(--a3);
+  --color-t1: var(--t1);
+  --color-t2: var(--t2);
+  --color-t3: var(--t3);
+  --color-on-a: var(--onA);
+  --color-on-a-muted: var(--onAMuted);
+  --color-sel: var(--sel);
+  --color-sel-soft: var(--selSoft);
+  --color-base: var(--base);
+  --color-outline: var(--outline);
+  --color-nav-on: var(--navOn);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--dangerSoft);
+  --color-add: var(--add);
+  --color-add-ink: var(--addInk);
+
+  /* shadcn colours */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
+
+  /* Folio shapes: inputs 12px, option rows 16px, hero cards 18px, menus 20px, page cards 24px */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-3xl: 24px;
+  --radius-4xl: 28px;
+
+  /* Folio elevation: flat by default, shadows only on floating layers */
+  --shadow-menu: 0 12px 32px rgba(0, 0, 0, 0.18);
+  --shadow-drawer: 0 12px 40px rgba(0, 0, 0, 0.28);
+  --shadow-dialog: 0 24px 60px rgba(0, 0, 0, 0.3);
+  --shadow-raised: 0 6px 16px rgba(0, 0, 0, 0.22);
+
+  --breakpoint-desk: 861px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ---------- Themes (values from Folio's SPEC token table) ---------- */
+
+:root,
+[data-theme="lilac"] {
+  --bg: #f1f1f4; --surface: #ffffff; --surface2: #f7f7fa; --ink: #1f1c3b; --mutedInk: #6b6985; --line: #ececf2;
+  --hero: #2b2849; --heroInk: #ffffff; --heroMuted: #c9c6e6; --primary: #2b2849; --primaryInk: #ffffff;
+  --a1: #b8a5fa; --a2: #fddcb4; --a3: #e8fb4f; --onA: #1f1c3b; --onAMuted: #3b3760;
+  --sel: #7b5cf5; --base: #a3a1b8; --hist: #2b2849;
+}
+:root.dark:not([data-theme]),
+[data-theme="lilac"].dark {
+  --bg: #14122a; --surface: #1f1d3a; --surface2: #28254a; --ink: #f1f0fb; --mutedInk: #a9a7c2; --line: #302d52;
+  --hero: #34306a; --heroInk: #ffffff; --heroMuted: #cfcbf0; --primary: #b8a5fa; --primaryInk: #1f1c3b;
+  --a1: #b8a5fa; --a2: #fddcb4; --a3: #e8fb4f; --onA: #1f1c3b; --onAMuted: #3b3760;
+  --sel: #b8a5fa; --base: #6d6a8f; --hist: #f1f0fb;
+}
+
+[data-theme="ocean"] {
+  --bg: #eef3f7; --surface: #ffffff; --surface2: #f5f8fb; --ink: #12263a; --mutedInk: #5a6b7d; --line: #e1e9f0;
+  --hero: #12324d; --heroInk: #ffffff; --heroMuted: #b9cfe3; --primary: #12324d; --primaryInk: #ffffff;
+  --a1: #9fd0f5; --a2: #bfe9e0; --a3: #ffe9a8; --onA: #0f2336; --onAMuted: #2e4a63;
+  --sel: #1f7ae0; --base: #9aa9b8; --hist: #12324d;
+}
+[data-theme="ocean"].dark {
+  --bg: #0d1a26; --surface: #14273a; --surface2: #1b3350; --ink: #e9f2fa; --mutedInk: #9db3c7; --line: #223b54;
+  --hero: #1d4a73; --heroInk: #ffffff; --heroMuted: #c3dcf0; --primary: #9fd0f5; --primaryInk: #0f2336;
+  --sel: #6db6ff; --base: #5d7389; --hist: #e9f2fa;
+}
+
+[data-theme="forest"] {
+  --bg: #f1f3ee; --surface: #ffffff; --surface2: #f6f8f3; --ink: #1d2b22; --mutedInk: #5f6f64; --line: #e4e9e0;
+  --hero: #23402f; --heroInk: #ffffff; --heroMuted: #bcd3c3; --primary: #23402f; --primaryInk: #ffffff;
+  --a1: #bfe3b4; --a2: #f3dcb2; --a3: #d8ef9e; --onA: #162419; --onAMuted: #34503f;
+  --sel: #2f8f5b; --base: #9aab9f; --hist: #23402f;
+}
+[data-theme="forest"].dark {
+  --bg: #101a14; --surface: #17261c; --surface2: #1f3427; --ink: #e8f3ea; --mutedInk: #a1b8a8; --line: #264232;
+  --hero: #24523a; --heroInk: #ffffff; --heroMuted: #c4dccb; --primary: #bfe3b4; --primaryInk: #162419;
+  --sel: #7fd6a0; --base: #5f7a69; --hist: #e8f3ea;
+}
+
+[data-theme="sunset"] {
+  --bg: #f7f1ee; --surface: #ffffff; --surface2: #fbf6f3; --ink: #3a1f1a; --mutedInk: #7a6560; --line: #f0e4de;
+  --hero: #4a2330; --heroInk: #ffffff; --heroMuted: #e8c9cc; --primary: #4a2330; --primaryInk: #ffffff;
+  --a1: #ffb8a3; --a2: #ffe0a3; --a3: #f5c6ec; --onA: #3a1f1a; --onAMuted: #5c3a35;
+  --sel: #d9482b; --base: #b3a19b; --hist: #4a2330;
+}
+[data-theme="sunset"].dark {
+  --bg: #1b1113; --surface: #2a1b1e; --surface2: #382529; --ink: #fbeee9; --mutedInk: #c4a9a2; --line: #4a3236;
+  --hero: #6b2d3e; --heroInk: #ffffff; --heroMuted: #f0cfd2; --primary: #ffb8a3; --primaryInk: #3a1f1a;
+  --sel: #ff8f70; --base: #8c7570; --hist: #fbeee9;
+}
+
+[data-theme="graphite"] {
+  --bg: #f2f2f2; --surface: #ffffff; --surface2: #f7f7f7; --ink: #1a1a1a; --mutedInk: #666666; --line: #e8e8e8;
+  --hero: #222222; --heroInk: #ffffff; --heroMuted: #bdbdbd; --primary: #222222; --primaryInk: #ffffff;
+  --a1: #d9d9e0; --a2: #e6e0d4; --a3: #cfe0d8; --onA: #1a1a1a; --onAMuted: #3a3a3a;
+  --sel: #4a5fc1; --base: #aaaaaa; --hist: #222222;
+}
+[data-theme="graphite"].dark {
+  --bg: #121212; --surface: #1c1c1c; --surface2: #262626; --ink: #eeeeee; --mutedInk: #a0a0a0; --line: #2e2e2e;
+  --hero: #2f2f2f; --heroInk: #ffffff; --heroMuted: #c9c9c9; --primary: #e5e5e5; --primaryInk: #1a1a1a;
+  --sel: #8fa2ff; --base: #666666; --hist: #eeeeee;
+}
+
+/* ---------- Derived tokens (Folio: computed, not stored per theme) ---------- */
+:root {
+  --danger: #c9352f;
+  --t1: color-mix(in srgb, var(--a1) 26%, var(--surface));
+  --t2: color-mix(in srgb, var(--a2) 26%, var(--surface));
+  --t3: color-mix(in srgb, var(--a3) 26%, var(--surface));
+  --outline: color-mix(in srgb, var(--ink) 20%, transparent);
+  --trackA: color-mix(in srgb, var(--onA) 18%, transparent);
+  --navOn: color-mix(in srgb, var(--a1) 30%, var(--surface));
+  --selSoft: color-mix(in srgb, var(--sel) 16%, transparent);
+  --dangerSoft: color-mix(in srgb, var(--danger) 14%, transparent);
+  --add: var(--a3);
+  --addInk: var(--hero);
+
+  /* shadcn variables mapped onto Folio tokens */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary-foreground: var(--primaryInk);
+  --secondary: var(--surface2);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--mutedInk);
+  --muted: var(--surface2);
+  --accent: var(--surface2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--outline);
+  --ring: var(--sel);
+  --chart-1: var(--hist);
+  --chart-2: var(--sel);
+  --chart-3: var(--a1);
+  --chart-4: var(--a2);
+  --chart-5: var(--base);
+  --radius: 14px;
+}
+.dark:root {
+  --danger: #ff8f8f;
+}
+/* Folio's "muted" (secondary text) is --mutedInk here, since shadcn uses --muted for a fill colour. */
+
+/* ---------- Base ---------- */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
+  html {
+    scrollbar-gutter: stable;
+    overflow-y: scroll;
+    @apply font-sans;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  button, input, select, textarea { font-family: inherit; }
+  a { color: inherit; text-decoration: none; }
+  :is(button, a, input, summary, [role="button"]):focus-visible {
+    outline: 2px solid var(--sel);
+    outline-offset: 2px;
+  }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  h2 { font-size: 18px; font-weight: 700; margin: 0; }
+  .tabular, time, [data-money] { font-variant-numeric: tabular-nums; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Hover only on devices that can hover, 0.15s like Folio */
+@media (hover: hover) {
+  a, button, summary { transition: background-color .15s ease, box-shadow .15s ease, border-color .15s ease, transform .15s ease, color .15s ease; }
+  .lift:hover { transform: translateY(-2px); }
+  .lift:hover .cardarrow { transform: translateX(4px); color: var(--ink); }
+}
+.cardarrow { transition: transform .15s ease, color .15s linear; }
+
+@keyframes addpulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--add) 85%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 16px color-mix(in srgb, var(--add) 0%, transparent); }
+}
+.addpulse { animation: addpulse 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .addpulse { animation: none; box-shadow: 0 0 0 5px var(--add); }
 }
