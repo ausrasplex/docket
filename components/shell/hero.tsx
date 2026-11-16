@@ -1,14 +1,29 @@
+import Link from "next/link"
 import { cn } from "cn"
 
-/** Folio's hero banner: a dark panel holding square accent stat cards that scroll sideways on phones. */
-export function Hero({ eyebrow, title, children }: { eyebrow?: React.ReactNode; title: string; children: React.ReactNode }) {
+/**
+ * Folio's hero banner: the summary text on the left and square accent stat cards on the right (they wrap
+ * under the text and scroll sideways when there isn't room).
+ */
+export function Hero({
+  eyebrow,
+  title,
+  line,
+  children,
+}: {
+  eyebrow?: React.ReactNode
+  title: React.ReactNode
+  line?: React.ReactNode
+  children: React.ReactNode
+}) {
   return (
-    <section className="flex flex-col gap-5 rounded-3xl bg-hero p-5 text-hero-ink desk:p-6">
-      <div>
-        {eyebrow ? <p className="text-sm font-semibold text-hero-muted">{eyebrow}</p> : null}
-        <p className="text-[26px] leading-tight font-bold tracking-[-0.02em]">{title}</p>
+    <section className="flex flex-wrap items-stretch gap-5 rounded-3xl bg-hero p-5 text-hero-ink desk:p-6">
+      <div className="flex min-w-0 flex-[1_1_240px] flex-col justify-center gap-3.5">
+        {eyebrow ? <p className="text-sm text-hero-muted">{eyebrow}</p> : null}
+        <p className="text-[26px] leading-[1.2] font-bold tracking-[-0.02em]">{title}</p>
+        {line ? <p className="text-sm text-hero-muted">{line}</p> : null}
       </div>
-      <div className="-mx-5 flex snap-x scroll-px-5 gap-3 overflow-x-auto px-5 desk:mx-0 desk:scroll-px-0 desk:px-0">{children}</div>
+      <div className="flex min-w-0 flex-[1_1_520px] snap-x gap-3 overflow-x-auto pt-0.5 pb-1">{children}</div>
     </section>
   )
 }
@@ -21,28 +36,29 @@ export function StatCard({
   value,
   caption,
   icon,
+  href,
 }: {
   tone: keyof typeof TONE
   label: string
   value: string
   caption?: string
   icon?: React.ReactNode
+  href?: string
 }) {
-  return (
-    <div
-      className={cn(
-        "flex aspect-square min-w-44 flex-1 snap-start flex-col justify-between rounded-2xl p-4 text-on-a",
-        TONE[tone]
-      )}
-    >
-      <div className="flex items-center justify-between text-sm font-semibold text-on-a-muted">
-        {label}
-        {icon}
-      </div>
-      <div>
-        <p className="text-[28px] leading-none font-bold tabular-nums">{value}</p>
-        {caption ? <p className="mt-1.5 text-xs font-semibold text-on-a-muted">{caption}</p> : null}
-      </div>
-    </div>
+  const body = (
+    <>
+      <span className="flex min-h-5 items-center text-xs font-semibold text-on-a-muted [&_svg]:size-5">{icon}</span>
+      <span className="text-sm font-semibold">{label}</span>
+      <span className="text-2xl font-bold tracking-[-0.02em] tabular-nums">{value}</span>
+      {caption ? <span className="mt-auto text-xs text-on-a-muted">{caption}</span> : null}
+    </>
+  )
+  const cls = cn("flex aspect-square flex-[1_0_176px] snap-start flex-col gap-2.5 self-start rounded-[18px] p-4 text-on-a", TONE[tone])
+  return href ? (
+    <Link href={href} className={cn(cls, "lift")}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
   )
 }

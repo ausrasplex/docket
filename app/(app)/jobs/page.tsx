@@ -70,7 +70,7 @@ async function Jobs({ searchParams }: { searchParams: PageProps<"/jobs">["search
 
   return (
     <>
-      <Hero eyebrow={`Financial year ${fy.label}`} title={`${money(sum())} spent`}>
+      <Hero eyebrow={`Financial year ${fy.label}`} title={`${money(sum())} spent.`} line="Improvements, repairs and the rest, from your jobs and receipts.">
         <StatCard tone="a1" label="Improvements" value={money(sum("CAPITAL_IMPROVEMENT"))} caption="May count toward the cost base" icon={<TrendingUp className="size-5" />} />
         <StatCard tone="a2" label="Repairs" value={money(sum("REPAIR_MAINTENANCE"))} caption="Fixing and maintaining" icon={<Wrench className="size-5" />} />
         <StatCard tone="a3" label="Other" value={money(sum("FURNISHING") + sum("OTHER"))} caption="Furnishings and the rest" icon={<Receipt className="size-5" />} />
