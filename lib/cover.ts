@@ -50,10 +50,27 @@ export async function setCover(kind: CoverKind, householdId: string, id: string,
     if (!(await db.documentLink.findFirst({ where: { documentId, ...target } }))) await db.documentLink.create({ data: { documentId, ...target } })
   }
   if (documentId !== rec.coverId) {
-    await update(kind, id, { coverId: documentId, coverCrop: Prisma.DbNull, coverCropKey: null })
+    // a photo another room or item already uses keeps the crop it has there (a generic product shot, say)
+    const from = documentId ? await croppedUse(householdId, documentId) : null
+    const key = from ? await copyCrop(householdId, from.coverCropKey) : null
+    await update(kind, id, { coverId: documentId, coverCrop: key && from?.coverCrop ? (from.coverCrop as Crop) : Prisma.DbNull, coverCropKey: key })
     if (rec.coverCropKey) await removeStored(rec.coverCropKey)
   }
   return null
+}
+
+/** The other copies of an item (its document set), which can be given the same photo in one go. */
+export async function coverCopiesOf(householdId: string, id: string) {
+  const f = await db.fixture.findFirst({ where: { id, householdId }, select: { docSetId: true, parentId: true } })
+  if (!f?.docSetId || f.parentId) return []
+  return db.fixture.findMany({ where: { householdId, docSetId: f.docSetId, parentId: null, archivedAt: null, id: { not: id } }, select: { id: true } })
+}
+
+/** A room or item already showing this photo with a crop of it, if any. */
+async function croppedUse(householdId: string, documentId: string) {
+  const where = { householdId, coverId: documentId, coverCropKey: { not: null } }
+  const sel = { coverCrop: true, coverCropKey: true } as const
+  return (await db.fixture.findFirst({ where, select: sel })) ?? (await db.space.findFirst({ where, select: sel }))
 }
 
 /** Saves the crop and makes a 512px copy cut from the full-size original (never changed). Error or null. */

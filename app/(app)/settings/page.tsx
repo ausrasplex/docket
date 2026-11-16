@@ -9,6 +9,7 @@ import { atLeast } from "@/lib/roles"
 import { Appearance } from "./appearance"
 import { Members } from "./members"
 import { HouseholdName, Profile } from "./profile"
+import { StorageCard } from "./storage"
 
 export default function SettingsPage() {
   return (
@@ -74,6 +75,9 @@ async function Settings() {
             />
           </CardContent>
         </Card>
+        <Suspense fallback={<Skeleton className="h-80 rounded-3xl" />}>
+          <StorageCard householdId={c.householdId} />
+        </Suspense>
       </div>
       <div className="flex flex-col gap-5">
         <Card>

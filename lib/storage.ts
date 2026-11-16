@@ -1,6 +1,6 @@
 import "server-only"
 import { createHash, randomBytes } from "node:crypto"
-import { mkdir, readFile, rm, writeFile, stat } from "node:fs/promises"
+import { mkdir, readFile, readdir, rm, statfs, writeFile, stat } from "node:fs/promises"
 import path from "node:path"
 import sharp from "sharp"
 
@@ -96,4 +96,48 @@ export async function storeDerived(householdId: string, buf: Buffer, ext: string
 /** Removes a file Docket made itself. Missing files are fine (already gone). */
 export async function removeStored(key: string) {
   await rm(/*turbopackIgnore: true*/ resolveKey(key), { force: true })
+}
+
+export type DiskUsage = {
+  documents: { bytes: number; files: number } // PDFs
+  photos: { bytes: number; files: number } // original photos
+  previews: { bytes: number; files: number } // the small previews made of each photo, and cropped room and item photos
+  total: number
+}
+
+/** What a household's files take up on disk (measured, so it includes previews and crops). */
+export async function householdUsage(householdId: string): Promise<DiskUsage> {
+  const u: DiskUsage = { documents: { bytes: 0, files: 0 }, photos: { bytes: 0, files: 0 }, previews: { bytes: 0, files: 0 }, total: 0 }
+  let entries
+  try {
+    entries = await readdir(/*turbopackIgnore: true*/ resolveKey(householdId), { recursive: true, withFileTypes: true })
+  } catch {
+    return u // nothing uploaded yet
+  }
+  for (const e of entries) {
+    if (!e.isFile()) continue
+    const p = path.join(e.parentPath, e.name)
+    let size = 0
+    try {
+      size = (await stat(/*turbopackIgnore: true*/ p)).size
+    } catch {
+      continue
+    }
+    const derived = p.split(path.sep).includes("derived")
+    const bucket = derived || e.name.endsWith(".thumb.webp") ? u.previews : e.name.endsWith(".pdf") ? u.documents : u.photos
+    bucket.bytes += size
+    bucket.files += 1
+    u.total += size
+  }
+  return u
+}
+
+/** The size of the disk uploads are stored on, and how much of it is free. Null when it can't be read. */
+export async function diskSpace() {
+  try {
+    const s = await statfs(/*turbopackIgnore: true*/ ROOT)
+    return { size: s.blocks * s.bsize, free: s.bavail * s.bsize }
+  } catch {
+    return null
+  }
 }

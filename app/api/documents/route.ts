@@ -2,7 +2,7 @@ import { after, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSession } from "@/lib/dal"
 import { acceptedType, storeFile } from "@/lib/storage"
-import { adoptUploadedCover } from "@/lib/cover"
+import { adoptUploadedCover, coverCopiesOf, setCover } from "@/lib/cover"
 import { atLeast } from "@/lib/roles"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { DOC_KINDS } from "@/lib/documents"
@@ -81,7 +81,12 @@ export async function POST(req: Request) {
       })
       created.push(doc.id)
       if (mime === "application/pdf") pdfs.push(doc.id)
-      if (cover && created.length === 1 && stored.thumbnailKey) await adoptUploadedCover(cover.kind, cover.id, doc.id)
+      if (cover && created.length === 1 && stored.thumbnailKey) {
+        await adoptUploadedCover(cover.kind, cover.id, doc.id)
+        // "also use on its copies": the item's other copies show the new photo too (and get it filed to them)
+        if (cover.kind === "fixture" && form.get("coverCopies") === "1")
+          for (const x of await coverCopiesOf(householdId, cover.id)) await setCover("fixture", householdId, x.id, doc.id)
+      }
     } catch (e) {
       errors.push(`${file.name}: ${e instanceof Error ? e.message : "couldn't be saved."}`)
     }
