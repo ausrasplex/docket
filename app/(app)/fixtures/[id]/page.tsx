@@ -21,6 +21,7 @@ import { activeCoverId } from "@/components/covers/cover-src"
 import { BrandCard } from "./brand-card"
 import { PartsList } from "./parts-list"
 import { DocGroups, type DocGroup } from "@/components/documents/doc-groups"
+import { DocSearchBox } from "./doc-search"
 import type { FixtureInput } from "../actions"
 
 const WARRANTY_TONE = { ok: "bg-t3", soon: "bg-t2", expired: "bg-danger-soft text-danger", none: "bg-surface2" } as const
@@ -373,7 +374,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id="documents" className="scroll-mt-24">
           <CardHeader>
             <CardTitle>Manuals, Links and Documents</CardTitle>
             <CardDescription>
@@ -382,11 +383,17 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <DocGroups
-              canEdit={canEdit}
-              groups={groups}
-              inbox={inbox.map((d) => ({ id: d.id, title: d.title, kind: d.kind, hasThumb: !!d.thumbnailKey, isLink: !!d.url, when: date(d.createdAt) }))}
-            />
+            {(() => {
+              const list = (
+                <DocGroups
+                  canEdit={canEdit}
+                  groups={groups}
+                  inbox={inbox.map((d) => ({ id: d.id, title: d.title, kind: d.kind, hasThumb: !!d.thumbnailKey, isLink: !!d.url, when: date(d.createdAt) }))}
+                />
+              )
+              // searching needs something to search: this item's own documents
+              return f.links.length ? <DocSearchBox fixtureId={f.id}>{list}</DocSearchBox> : list
+            })()}
           </CardContent>
         </Card>
       </PageBody>

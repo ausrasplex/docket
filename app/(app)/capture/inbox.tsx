@@ -5,7 +5,7 @@ import { FileText, FolderInput, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FileDrawer, type EditableDoc } from "@/components/documents/file-drawer"
 import type { TargetOption } from "@/components/documents/target-picker"
-import { docHref, docKind, LINK_ICON } from "@/lib/documents"
+import { docHref, docKind, LINK_ICON, viewHref } from "@/lib/documents"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { ConfirmDelete } from "@/components/documents/doc-menu"
 
@@ -35,7 +35,11 @@ export function Inbox({ items, targets, canEdit }: { items: InboxItem[]; targets
           const Icon = d.isLink ? LINK_ICON : d.isPdf ? FileText : k.icon
           return (
             <div key={d.id} className="flex flex-col overflow-hidden rounded-3xl bg-surface">
-              <a href={docHref(d)} target="_blank" rel="noopener noreferrer" className="block aspect-[4/3] bg-surface2">
+              <a
+                href={d.isPdf && !d.isLink ? viewHref(d.id, { back: "/capture" }) : docHref(d)}
+                {...(d.isPdf && !d.isLink ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+                className="block aspect-[4/3] bg-surface2"
+              >
                 {d.hasThumb ? (
                   // eslint-disable-next-line @next/next/no-img-element -- private, auth-checked file
                   <img src={`/api/files/${d.id}?v=thumb`} alt="" loading="lazy" className="size-full object-cover" />

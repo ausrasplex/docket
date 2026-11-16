@@ -19,6 +19,7 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // skip Next's assets, icons and the manifest
-  matcher: ["/((?!_next/static|_next/image|icon.png|icon-|apple-touch-icon|brand/|manifest.webmanifest|favicon).*)"],
+  // skip Next's assets, icons and the manifest. Also uploads: the proxy buffers request bodies only up to
+  // 10 MB (proxyClientMaxBodySize), which cut larger PDFs short; /api/documents checks the session itself.
+  matcher: ["/((?!_next/static|_next/image|icon.png|icon-|apple-touch-icon|brand/|manifest.webmanifest|favicon|pdfjs/|api/documents).*)"],
 }

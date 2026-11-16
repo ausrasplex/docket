@@ -8,7 +8,9 @@ const csp = [
   "img-src 'self' data: blob:",
   "style-src 'self' 'unsafe-inline'",
   // 'unsafe-inline' covers the small script in layout.tsx that applies the theme before the page is drawn
-  "script-src 'self' 'unsafe-inline'" + (dev ? " 'unsafe-eval'" : ""),
+  // 'wasm-unsafe-eval' lets the PDF viewer compile pdf.js's image decoders (scanned pages are often JBIG2/JPEG 2000)
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'" + (dev ? " 'unsafe-eval'" : ""),
+  "worker-src 'self'",
   "connect-src 'self'" + (dev ? " ws: wss:" : ""),
   // PDFs open in the browser's own viewer from /api/files
   "object-src 'self'",
@@ -25,8 +27,12 @@ const nextConfig: NextConfig = {
   // file tracing copies sharp's native module but not the libvips libraries it loads (on Linux they're a
   // separate @img/sharp-libvips-* package), so uploads would fail in the standalone server without these
   outputFileTracingIncludes: {
-    "/api/documents": ["./node_modules/@img/**/*", "./node_modules/sharp/**/*"],
+    "/api/documents": ["./node_modules/@img/**/*", "./node_modules/sharp/**/*", "./node_modules/pdfjs-dist/legacy/build/**/*"],
+    // searching an item's documents reads older PDFs' text the first time
+    "/fixtures/[id]": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
   },
+  // pdf.js reads PDFs' text on the server; it loads its own worker module, so it isn't bundled
+  serverExternalPackages: ["pdfjs-dist"],
   turbopack: {
     rules: {
       "*.css": {

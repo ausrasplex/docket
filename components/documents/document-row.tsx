@@ -1,5 +1,5 @@
-import { ExternalLink } from "lucide-react"
-import { docHref, docKind, LINK_ICON } from "@/lib/documents"
+import { ChevronRight, ExternalLink } from "lucide-react"
+import { docHref, docKind, LINK_ICON, opensInApp } from "@/lib/documents"
 import { bytes, date } from "@/lib/format"
 import type { DocumentKind } from "@/generated/prisma/enums"
 
@@ -24,7 +24,7 @@ export function DocumentRow({ doc, label, trailing }: { doc: DocLike; label?: st
     .join(" · ")
   return (
     <div className="flex items-center gap-3 border-t border-line py-3 first:border-t-0">
-      <a href={docHref(doc)} target="_blank" rel="noopener noreferrer" className="lift group flex min-w-0 flex-1 items-center gap-3">
+      <a href={docHref(doc)} {...(opensInApp(doc) ? {} : { target: "_blank", rel: "noopener noreferrer" })} className="lift group flex min-w-0 flex-1 items-center gap-3">
         {doc.thumbnailKey ? (
           // eslint-disable-next-line @next/next/no-img-element -- private, auth-checked file; not for next/image
           <img src={`/api/files/${doc.id}?v=thumb`} alt="" className="size-11 flex-none rounded-xl object-cover" loading="lazy" />
@@ -37,7 +37,11 @@ export function DocumentRow({ doc, label, trailing }: { doc: DocLike; label?: st
           <span className="truncate text-[15px] font-bold">{doc.title}</span>
           <span className="truncate text-xs font-medium text-muted-foreground">{meta}</span>
         </span>
-        <ExternalLink className="cardarrow ml-auto size-4 flex-none text-muted-foreground" />
+        {opensInApp(doc) ? (
+          <ChevronRight className="cardarrow ml-auto size-4 flex-none text-muted-foreground" />
+        ) : (
+          <ExternalLink className="cardarrow ml-auto size-4 flex-none text-muted-foreground" />
+        )}
       </a>
       {trailing}
     </div>

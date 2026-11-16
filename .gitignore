@@ -14,6 +14,8 @@
 /coverage
 
 # next.js
+# copied from pdfjs-dist by scripts/copy-pdfjs.mjs
+/public/pdfjs/
 /.next/
 /out/
 

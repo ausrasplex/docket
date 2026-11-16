@@ -636,6 +636,9 @@ model Document {
   issuer       String? // who issued a certificate or warranty
   expiresAt    DateTime? @db.Date // certificates and warranties
   text         String? // extracted text for search (PDF text, later OCR)
+  /// Whether the PDF's text has been read into `pages` for searching. Null: not yet (it is read on upload,
+  /// or on the first search for older files). EMPTY: no text layer (a scan), the ones OCR would pick up.
+  textStatus   TextStatus?
   notes        String?
   archivedAt   DateTime?
   createdById  String?
@@ -647,9 +650,33 @@ model Document {
   tags            Tag[]
   coverOf         Space[]        @relation("SpaceCover")
   coverOfFixtures Fixture[]      @relation("FixtureCover")
+  pages           DocumentPage[]
 
   @@index([householdId, kind])
   @@index([householdId, sha256])
+}
+
+/// The searchable text of one page of a stored PDF (whitespace collapsed, see lib/pdf-find.ts).
+/// `source` is where it came from: the PDF's own text layer, or OCR of a scanned page (later).
+model DocumentPage {
+  documentId String
+  document   Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  page       Int // 1-based
+  text       String
+  source     TextSource @default(PDF)
+
+  @@id([documentId, page])
+}
+
+enum TextStatus {
+  DONE
+  EMPTY
+  FAILED
+}
+
+enum TextSource {
+  PDF
+  OCR
 }
 
 /// Attaches a document to exactly one record. Set exactly one of the target ids (checked in the app).

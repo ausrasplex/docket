@@ -251,3 +251,44 @@ html body[data-scroll-locked] {
 @media (prefers-reduced-motion: reduce) {
   .addpulse { animation: none; box-shadow: 0 0 0 5px var(--add); }
 }
+
+/* PDF viewer: pdf.js's text layer (components/pdf/pdf-viewer.tsx), from pdfjs-dist/web/pdf_viewer.css.
+   Invisible text placed over the drawn page, so words can be selected and Find can place its highlights. */
+.pdf-text {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.pdf-text :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+.pdf-text > :not(.markedContent),
+.pdf-text .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.pdf-text .markedContent {
+  display: contents;
+}
+.pdf-text ::selection {
+  background: color-mix(in srgb, var(--sel) 30%, transparent);
+}

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { after, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSession } from "@/lib/dal"
 import { acceptedType, storeFile } from "@/lib/storage"
@@ -7,6 +7,7 @@ import { atLeast } from "@/lib/roles"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { DOC_KINDS } from "@/lib/documents"
 import { shareFiled } from "@/lib/doc-sets"
+import { indexDocument } from "@/lib/pdf-text"
 
 const DOC_KIND_IDS = DOC_KINDS.map((k) => k.id)
 
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
   const cover = form.get("asCover") === "1" ? (link?.spaceId ? { kind: "space" as const, id: link.spaceId } : link?.fixtureId ? { kind: "fixture" as const, id: link.fixtureId } : null) : null
 
   const created: string[] = []
+  const pdfs: string[] = []
   const errors: string[] = []
   for (const file of files) {
     const mime = file.type || "application/octet-stream"
@@ -78,11 +80,16 @@ export async function POST(req: Request) {
         },
       })
       created.push(doc.id)
+      if (mime === "application/pdf") pdfs.push(doc.id)
       if (cover && created.length === 1 && stored.thumbnailKey) await adoptUploadedCover(cover.kind, cover.id, doc.id)
     } catch (e) {
       errors.push(`${file.name}: ${e instanceof Error ? e.message : "couldn't be saved."}`)
     }
   }
+  // read PDFs' text for searching once the response has gone, so big manuals don't hold up the upload
+  if (pdfs.length) after(async () => {
+    for (const id of pdfs) await indexDocument(id)
+  })
   if (created.length) {
     await shareFiled([fixtureId]) // manuals and warranties reach the other copies of the item too
     await db.activity.create({
