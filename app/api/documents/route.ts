@@ -6,6 +6,7 @@ import { adoptUploadedCover } from "@/lib/cover"
 import { atLeast } from "@/lib/roles"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { DOC_KINDS } from "@/lib/documents"
+import { shareFiled } from "@/lib/doc-sets"
 
 const DOC_KIND_IDS = DOC_KINDS.map((k) => k.id)
 
@@ -83,6 +84,7 @@ export async function POST(req: Request) {
     }
   }
   if (created.length) {
+    await shareFiled([fixtureId]) // manuals and warranties reach the other copies of the item too
     await db.activity.create({
       data: {
         householdId,

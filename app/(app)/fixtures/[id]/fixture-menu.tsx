@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Archive, ArchiveRestore, Camera, Copy, MoreHorizontal, Pencil, Plus } from "lucide-react"
+import { Archive, ArchiveRestore, Camera, Copy, Files, MoreHorizontal, Pencil, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -9,6 +9,7 @@ import { BLANK_FIXTURE, FixtureDrawer } from "../fixture-drawer"
 import { CoverPhotoDrawer, type CoverPhoto, type CoverTarget } from "@/components/covers/cover-photo"
 import { setFixtureArchived, type FixtureInput } from "../actions"
 import { DuplicateDialog } from "./duplicate-dialog"
+import { ShareDocsDialog, type ShareCandidate } from "./share-docs-dialog"
 
 export function FixtureMenu({
   id,
@@ -20,6 +21,7 @@ export function FixtureMenu({
   photo,
   photos,
   parts,
+  shareWith,
 }: {
   id: string
   name: string
@@ -30,9 +32,11 @@ export function FixtureMenu({
   photo: CoverTarget
   photos: CoverPhoto[]
   parts: { id: string; name: string }[]
+  shareWith: ShareCandidate[]
 }) {
   const [edit, setEdit] = useState(false)
   const [duplicate, setDuplicate] = useState(false)
+  const [share, setShare] = useState(false)
   const [photoOpen, setPhotoOpen] = useState(false)
   const [addPart, setAddPart] = useState(false)
   const [, start] = useTransition()
@@ -61,6 +65,10 @@ export function FixtureMenu({
             <Copy />
             Duplicate
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setShare(true)}>
+            <Files />
+            Share Documents
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant={archived ? "default" : "destructive"}
@@ -79,7 +87,8 @@ export function FixtureMenu({
       </DropdownMenu>
       <CoverPhotoDrawer open={photoOpen} onOpenChange={setPhotoOpen} target={photo} photos={photos} />
       <DuplicateDialog open={duplicate} onOpenChange={setDuplicate} id={id} name={name} roomId={initial.spaceId} rooms={rooms} parts={parts} />
-      <FixtureDrawer open={edit}onOpenChange={setEdit} initial={initial} editingId={id} rooms={rooms} brands={brands} />
+      <ShareDocsDialog open={share} onOpenChange={setShare} id={id} name={name} candidates={shareWith} />
+      <FixtureDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} rooms={rooms} brands={brands} />
       <FixtureDrawer
         open={addPart}
         onOpenChange={setAddPart}

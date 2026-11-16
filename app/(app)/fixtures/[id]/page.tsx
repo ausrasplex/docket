@@ -110,7 +110,13 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
   // a part's page is its item's page
   if (f.parent) redirect(`/fixtures/${f.parent.id}#part-${f.id}`)
 
-  const [rooms, brands, inbox, plans, records, contacts] = await Promise.all([
+  const [others, rooms, brands, inbox, plans, records, contacts] = await Promise.all([
+    // items this one can share documents with (Share Documents in its menu)
+    db.fixture.findMany({
+      where: { householdId: c.householdId, parentId: null, id: { not: f.id }, OR: [{ archivedAt: null }, ...(f.docSetId ? [{ docSetId: f.docSetId }] : [])] },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, model: true, docSetId: true, brand: { select: { name: true } }, space: { select: { name: true } } },
+    }),
     db.space.findMany({
       where: { householdId: c.householdId, propertyId: f.propertyId, archivedAt: null, kind: { not: "FLOOR" } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -188,6 +194,16 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
     })),
   ]
 
+  // the same product first (most likely its other copies), then everything else
+  const same = (x: { name: string }) => x.name.trim().toLowerCase() === f.name.trim().toLowerCase()
+  const shareWith = [...others.filter(same), ...others.filter((x) => !same(x))].map((x) => ({
+    id: x.id,
+    name: x.name,
+    detail: [x.space?.name ?? "No room", [x.brand?.name, x.model].filter(Boolean).join(" ")].filter(Boolean).join(" · "),
+    inSet: !!f.docSetId && x.docSetId === f.docSetId,
+  }))
+  const copies = shareWith.filter((x) => x.inSet).length
+
   return (
     <>
       <PageTitle>
@@ -196,7 +212,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
         </Link>
         <h1 className="min-w-0 flex-1 truncate">{f.name}</h1>
         {canEdit ? (
-          <FixtureMenu id={f.id} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} photo={itemPhoto} photos={photosOf(f.links)} parts={f.parts.map((p) => ({ id: p.id, name: p.name }))} />
+          <FixtureMenu id={f.id} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} photo={itemPhoto} photos={photosOf(f.links)} parts={f.parts.map((p) => ({ id: p.id, name: p.name }))} shareWith={shareWith} />
         ) : null}
       </PageTitle>
       <PageBody>
@@ -362,6 +378,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
             <CardTitle>Manuals, Links and Documents</CardTitle>
             <CardDescription>
               {f.parts.length ? "Grouped by part. Add as many as you like to each." : "Add as many as you like: manuals, warranty, receipts, support pages."}
+              {copies ? ` Manuals, warranties and links are shared with ${copies === 1 ? "1 other copy" : `${copies} other copies`}; receipts and photos stay on this one.` : null}
             </CardDescription>
           </CardHeader>
           <CardContent>

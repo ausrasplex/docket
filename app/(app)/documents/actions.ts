@@ -7,6 +7,7 @@ import { normaliseUrl } from "@/lib/documents"
 import { atLeast } from "@/lib/roles"
 import { removeStored } from "@/lib/storage"
 import { releaseCovers } from "@/lib/cover"
+import { setMembers, shareFiled, sharedKind } from "@/lib/doc-sets"
 import type { DocumentKind } from "@/generated/prisma/enums"
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
@@ -39,7 +40,11 @@ export async function updateDocument(id: string, input: DocInput): Promise<Resul
     where: { id },
     data: { title, kind: input.kind, notes: input.notes.trim() || null, documentDate: parseDate(input.documentDate), updatedById: c.user.id },
   })
+  // now a manual or warranty (say, no longer a photo): the other copies of the items it's on get it too
+  const on = await db.documentLink.findMany({ where: { documentId: id, fixtureId: { not: null } }, select: { fixtureId: true } })
+  await shareFiled(on.map((l) => l.fixtureId))
   refresh()
+  revalidatePath("/fixtures", "layout")
   return { ok: true }
 }
 
@@ -74,6 +79,7 @@ export async function fileTo(id: string, target: Target, label: string | null): 
   const existing = await db.documentLink.findFirst({ where: { documentId: id, ...linkData(target) } })
   if (existing) await db.documentLink.update({ where: { id: existing.id }, data: { label: label?.trim() || null } })
   else await db.documentLink.create({ data: { documentId: id, ...linkData(target), label: label?.trim() || null } })
+  if (target.type === "fixture") await shareFiled([target.id]) // and to the other copies of that item
   await logActivity(c, { action: "linked", entityType: "Document", entityId: id, summary: `${c.user.name} filed “${doc.title}” to ${name}` })
   refresh()
   revalidatePath("/fixtures", "layout")
@@ -82,9 +88,12 @@ export async function fileTo(id: string, target: Target, label: string | null): 
 
 export async function unlink(linkId: string): Promise<Result> {
   const c = await requireHousehold("MEMBER")
-  const l = await db.documentLink.findFirst({ where: { id: linkId, document: { householdId: c.householdId } } })
+  const l = await db.documentLink.findFirst({ where: { id: linkId, document: { householdId: c.householdId } }, include: { document: { select: { kind: true } } } })
   if (!l) return { ok: false, error: "That link no longer exists." }
-  await db.documentLink.delete({ where: { id: linkId } })
+  // a shared document comes off every copy of the item; anything else just this one
+  if (l.fixtureId && sharedKind(l.document.kind)) {
+    await db.documentLink.deleteMany({ where: { documentId: l.documentId, fixtureId: { in: await setMembers(l.fixtureId) } } })
+  } else await db.documentLink.delete({ where: { id: linkId } })
   refresh()
   revalidatePath("/fixtures", "layout")
   return { ok: true }
@@ -144,6 +153,7 @@ export async function addWebLink(input: { url: string; title: string; kind: Docu
       ...(input.target ? { links: { create: { ...linkData(input.target), label: input.label?.trim() || null } } } : {}),
     },
   })
+  if (input.target?.type === "fixture") await shareFiled([input.target.id])
   await logActivity(c, { action: "created", entityType: "Document", entityId: doc.id, summary: `${c.user.name} added the link “${title}”` })
   refresh()
   revalidatePath("/fixtures", "layout")

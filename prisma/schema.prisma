@@ -321,6 +321,10 @@ model Fixture {
   replacementValue Decimal? @db.Decimal(12, 2)
   includedInSale   Boolean  @default(true) // fixed to the house (true) or contents you'd take with you (false)
 
+  /// copies of the same product (the same air conditioner in three bedrooms) share one id; manuals, warranties
+  /// and links filed to one are filed to all of them (receipts, invoices and photos stay per copy). lib/doc-sets.ts
+  docSetId String?
+
   notes       String?
   archivedAt  DateTime?
   createdById String?
@@ -337,6 +341,7 @@ model Fixture {
   @@index([spaceId])
   @@index([parentId])
   @@index([warrantyExpiresAt])
+  @@index([docSetId])
 }
 
 enum Surface {

@@ -22,8 +22,9 @@ const source = {
 
 /**
  * Copies an item (and its parts) into other rooms: the same details, photo, manuals and links (shared, not
- * re-uploaded) and service routines. Each copy gets its own serial numbers; rego, VIN, odometer and the
- * service history stay with the original.
+ * re-uploaded) and service routines. The copies join the original's document set, so manuals and warranties
+ * added to any of them later reach them all (lib/doc-sets.ts). Each copy gets its own serial numbers; rego,
+ * VIN, odometer and the service history stay with the original.
  */
 export async function duplicateFixture(id: string, copies: DuplicateCopy[]): Promise<Result<{ ids: string[] }>> {
   const c = await requireHousehold("MEMBER")
@@ -59,6 +60,7 @@ export async function duplicateFixture(id: string, copies: DuplicateCopy[]): Pro
 
   type Src = typeof f | (typeof f.parts)[number]
   const fields = (x: Src, cropKey: string | null) => ({
+    docSetId: x.docSetId ?? x.id,
     householdId: x.householdId,
     propertyId: x.propertyId,
     sortOrder: x.sortOrder,
@@ -88,6 +90,8 @@ export async function duplicateFixture(id: string, copies: DuplicateCopy[]): Pro
   let ids: string[]
   try {
     ids = await db.$transaction(async (tx) => {
+      // the original (and each part) starts a document set if it isn't in one yet
+      for (const x of [f, ...f.parts]) if (!x.docSetId) await tx.fixture.update({ where: { id: x.id }, data: { docSetId: x.id } })
       const out: string[] = []
       for (const { copy, cropKey, parts } of plan) {
         const item = await tx.fixture.create({ data: { ...fields(f, cropKey), spaceId: copy.spaceId, serial: copy.serial.trim() || null } })
