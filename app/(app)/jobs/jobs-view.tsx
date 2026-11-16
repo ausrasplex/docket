@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { ChevronRight, Hammer, Plus, Receipt } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { ChevronRight, Hammer } from "lucide-react"
 import { cn } from "cn"
-import { Button } from "@/components/ui/button"
+import { withoutAdd } from "@/components/shell/header-action"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { InboxDoc } from "@/components/documents/doc-groups"
 import { BLANK_JOB, JobDrawer } from "@/components/jobs/job-drawer"
@@ -28,7 +28,7 @@ export type JobCard = {
   costs: number
 }
 
-/** The Jobs page body: add buttons, jobs, costs outside a job, and tradespeople. */
+/** The Jobs page body (its add buttons are beside the title and open these drawers with ?add=): jobs, costs outside a job, and tradespeople. */
 export function JobsView({
   jobs,
   looseCosts,
@@ -47,6 +47,8 @@ export function JobsView({
   open: "job" | "cost" | null
 }) {
   const router = useRouter()
+  const path = usePathname()
+  const params = useSearchParams()
   const [open, setOpen] = useState<"job" | "cost" | null>(canEdit ? openParam : null)
   const [lastParam, setLastParam] = useState(openParam)
   if (openParam !== lastParam) {
@@ -55,26 +57,13 @@ export function JobsView({
   }
   const close = () => {
     setOpen(null)
-    if (openParam) router.replace("/jobs", { scroll: false })
+    if (openParam) router.replace(withoutAdd(path, params), { scroll: false })
   }
   const lite: ContactLite[] = contacts.map((c) => ({ id: c.id, name: c.name, business: c.business || null, trade: c.trade || null, phone: c.phone || null }))
   const jobList = jobs.map((j) => ({ id: j.id, title: j.title }))
 
   return (
     <>
-      {canEdit ? (
-        <div className="flex gap-2.5 desk:justify-end [&>*]:flex-1 desk:[&>*]:flex-none">
-          <Button variant="outline" onClick={() => setOpen("cost")}>
-            <Receipt />
-            Add Cost
-          </Button>
-          <Button variant="add" onClick={() => setOpen("job")}>
-            <Plus />
-            Add Job
-          </Button>
-        </div>
-      ) : null}
-
       {jobs.length ? (
         <section className="flex flex-col gap-3">
           <h2>Jobs</h2>

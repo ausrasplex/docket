@@ -1,6 +1,8 @@
 import { Suspense } from "react"
-import { Lamp } from "lucide-react"
+import { Lamp, Plus } from "lucide-react"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
+import { HeaderAction } from "@/components/shell/header-action"
+import { MemberOnly } from "@/components/shell/member-only"
 import { EmptyState } from "@/components/shell/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { db } from "@/lib/db"
@@ -16,7 +18,16 @@ export const metadata = { title: "Fixtures · Docket" }
 export default function FixturesPage({ searchParams }: PageProps<"/fixtures">) {
   return (
     <>
-      <PageHeader title="Fixtures" />
+      <PageHeader
+        title="Fixtures"
+        actions={
+          <Suspense fallback={null}>
+            <MemberOnly>
+              <HeaderAction add="1" icon={<Plus />} label="Add Item" />
+            </MemberOnly>
+          </Suspense>
+        }
+      />
       <PageBody>
         <Suspense fallback={<Skeleton className="h-64 rounded-3xl" />}>
           <Fixtures searchParams={searchParams} />

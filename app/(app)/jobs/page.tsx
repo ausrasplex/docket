@@ -1,8 +1,10 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { Hammer, Receipt, TrendingUp, Wrench } from "lucide-react"
+import { Hammer, Plus, Receipt, TrendingUp, Wrench } from "lucide-react"
 import { cn } from "cn"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
+import { HeaderAction } from "@/components/shell/header-action"
+import { MemberOnly } from "@/components/shell/member-only"
 import { Hero, StatCard } from "@/components/shell/hero"
 import { EmptyState } from "@/components/shell/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -18,7 +20,17 @@ export const metadata = { title: "Jobs · Docket" }
 export default function JobsPage({ searchParams }: PageProps<"/jobs">) {
   return (
     <>
-      <PageHeader title="Jobs" />
+      <PageHeader
+        title="Jobs"
+        actions={
+          <Suspense fallback={null}>
+            <MemberOnly>
+              <HeaderAction add="cost" variant="outline" icon={<Receipt />} label="Add Cost" />
+              <HeaderAction add="job" icon={<Plus />} label="Add Job" />
+            </MemberOnly>
+          </Suspense>
+        }
+      />
       <PageBody>
         <Suspense fallback={<Skeleton className="h-72 rounded-3xl" />}>
           <Jobs searchParams={searchParams} />

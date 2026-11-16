@@ -1,6 +1,8 @@
 import { Suspense } from "react"
-import { FileText } from "lucide-react"
+import { FileText, Globe } from "lucide-react"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
+import { HeaderAction } from "@/components/shell/header-action"
+import { MemberOnly } from "@/components/shell/member-only"
 import { EmptyState } from "@/components/shell/empty-state"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,7 +23,16 @@ import { KindChips } from "./kind-chips"
 export default function DocumentsPage({ searchParams }: PageProps<"/documents">) {
   return (
     <>
-      <PageHeader title="Documents" />
+      <PageHeader
+        title="Documents"
+        actions={
+          <Suspense fallback={null}>
+            <MemberOnly>
+              <HeaderAction add="link" variant="outline" icon={<Globe />} label="Add Web Link" />
+            </MemberOnly>
+          </Suspense>
+        }
+      />
       <PageBody>
         <Suspense fallback={<Skeleton className="h-96 rounded-3xl" />}>
           <Documents searchParams={searchParams} />
@@ -59,7 +70,6 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
           kind={kind ?? null}
           chips={[{ id: null, label: `All · ${total}` }, ...chips.map((k) => ({ id: k.id, label: `${k.label} · ${counts.find((x) => x.kind === k.id)?._count}` }))]}
         />
-        {atLeast(c.role, "MEMBER") ? <AddLink targets={targets} /> : null}
       </div>
       <DocSearchBox
         scope={{ kind: kind ?? null }}
@@ -94,6 +104,7 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
           />
         )}
       </DocSearchBox>
+      {canEdit ? <AddLink targets={targets} openAdd={sp.add === "link"} /> : null}
     </>
   )
 }

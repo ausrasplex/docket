@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { ChevronRight, FileText, Plus } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { ChevronRight, FileText } from "lucide-react"
 import { cn } from "cn"
-import { Button } from "@/components/ui/button"
+import { withoutAdd } from "@/components/shell/header-action"
 import { category, type WarrantyState } from "@/lib/fixtures"
 import { plural } from "@/lib/format"
 import type { FixtureCategory } from "@/generated/prisma/enums"
@@ -47,8 +47,10 @@ export function FixturesList({
   presetRoom: string | null
 }) {
   const router = useRouter()
+  const path = usePathname()
+  const params = useSearchParams()
   const [open, setOpen] = useState(openAdd && canEdit)
-  // the Add menu links here with ?add=1 even when this page is already open: reopen the drawer
+  // Add Item (beside the title) and the Add menu link here with ?add=1, even when this page is already open
   const [lastAdd, setLastAdd] = useState(openAdd)
   if (openAdd !== lastAdd) {
     setLastAdd(openAdd)
@@ -57,7 +59,7 @@ export function FixturesList({
   const [initial] = useState(() => ({ ...BLANK_FIXTURE, spaceId: presetRoom }))
   const onOpenChange = (o: boolean) => {
     setOpen(o)
-    if (!o && openAdd) router.replace("/fixtures", { scroll: false }) // drop ?add=1 so a refresh doesn't reopen it
+    if (!o && openAdd) router.replace(withoutAdd(path, params), { scroll: false }) // drop ?add=1 so a refresh doesn't reopen it
   }
 
   // grouped by room, in the rooms' own order; then portable items; items without a room last
@@ -69,17 +71,6 @@ export function FixturesList({
 
   return (
     <>
-      {canEdit ? (
-        <>
-          <div className="flex desk:justify-end">
-            <Button variant="add" className="w-full desk:w-auto" onClick={() => setOpen(true)}>
-              <Plus />
-              Add Item
-            </Button>
-          </div>
-        </>
-      ) : null}
-
       {groups.map((g) => (
         <section key={g.id} className="flex flex-col gap-3">
           <h2>{g.name}</h2>

@@ -1,6 +1,8 @@
 import { Suspense } from "react"
-import { DoorOpen } from "lucide-react"
+import { DoorOpen, Plus } from "lucide-react"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
+import { HeaderAction } from "@/components/shell/header-action"
+import { MemberOnly } from "@/components/shell/member-only"
 import { EmptyState } from "@/components/shell/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { db } from "@/lib/db"
@@ -9,20 +11,30 @@ import { atLeast } from "@/lib/roles"
 import { RoomsList } from "./rooms-list"
 import { roomPhotoSrc } from "@/components/rooms/room-tile"
 
-export default function RoomsPage() {
+export default function RoomsPage({ searchParams }: PageProps<"/rooms">) {
   return (
     <>
-      <PageHeader title="Rooms" />
+      <PageHeader
+        title="Rooms"
+        actions={
+          <Suspense fallback={null}>
+            <MemberOnly>
+              <HeaderAction add="1" icon={<Plus />} label="Add Room" />
+            </MemberOnly>
+          </Suspense>
+        }
+      />
       <PageBody>
         <Suspense fallback={<Skeleton className="h-64 rounded-3xl" />}>
-          <Rooms />
+          <Rooms searchParams={searchParams} />
         </Suspense>
       </PageBody>
     </>
   )
 }
 
-async function Rooms() {
+async function Rooms({ searchParams }: { searchParams: PageProps<"/rooms">["searchParams"] }) {
+  const openAdd = (await searchParams).add === "1"
   const c = await requireHousehold()
   const spaces = await db.space.findMany({
     where: { householdId: c.householdId, propertyId: c.property.id, archivedAt: null },
@@ -36,7 +48,7 @@ async function Rooms() {
   if (!spaces.length) {
     return (
       <>
-        <RoomsList rooms={[]} canEdit={atLeast(c.role, "MEMBER")} />
+        <RoomsList rooms={[]} canEdit={atLeast(c.role, "MEMBER")} openAdd={openAdd} />
         <EmptyState icon={<DoorOpen className="size-6" />} title="No Rooms Yet" body="Add the rooms in your home. Each one holds its fixtures, paint colours and the jobs done in it." />
       </>
     )
@@ -44,6 +56,7 @@ async function Rooms() {
   return (
     <RoomsList
       canEdit={atLeast(c.role, "MEMBER")}
+      openAdd={openAdd}
       rooms={spaces.map((s) => ({
         id: s.id,
         slug: s.slug,

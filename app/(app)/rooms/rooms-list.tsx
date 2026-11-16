@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ChevronRight, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { ChevronRight } from "lucide-react"
+import { withoutAdd } from "@/components/shell/header-action"
 import { RoomTile } from "@/components/rooms/room-tile"
 import { plural } from "@/lib/format"
 import type { SpaceKind } from "@/generated/prisma/enums"
@@ -23,8 +24,21 @@ export type RoomCard = {
 
 const BLANK: SpaceDraft = { name: "", kind: "ROOM", parentId: null, notes: "" }
 
-export function RoomsList({ rooms, canEdit }: { rooms: RoomCard[]; canEdit: boolean }) {
-  const [open, setOpen] = useState(false)
+export function RoomsList({ rooms, canEdit, openAdd }: { rooms: RoomCard[]; canEdit: boolean; openAdd: boolean }) {
+  const router = useRouter()
+  const path = usePathname()
+  const params = useSearchParams()
+  const [open, setOpen] = useState(openAdd && canEdit)
+  // Add Room (beside the title) links here with ?add=1: open the drawer, even if this page is already open
+  const [lastAdd, setLastAdd] = useState(openAdd)
+  if (openAdd !== lastAdd) {
+    setLastAdd(openAdd)
+    if (openAdd && canEdit) setOpen(true)
+  }
+  const onOpenChange = (o: boolean) => {
+    setOpen(o)
+    if (!o && openAdd) router.replace(withoutAdd(path, params), { scroll: false })
+  }
   const floors = rooms.filter((r) => r.kind === "FLOOR")
   // rooms on a floor are listed under it; everything else under "Rooms"
   const groups = [
@@ -34,15 +48,6 @@ export function RoomsList({ rooms, canEdit }: { rooms: RoomCard[]; canEdit: bool
 
   return (
     <>
-      <div className="flex desk:justify-end">
-        {canEdit ? (
-          <Button variant="add" className="w-full desk:w-auto" onClick={() => setOpen(true)}>
-            <Plus />
-            Add Room
-          </Button>
-        ) : null}
-      </div>
-
       {groups.map((g) => (
         <section key={g.id ?? "none"} className="flex flex-col gap-3">
           {g.name ? (
@@ -82,7 +87,7 @@ export function RoomsList({ rooms, canEdit }: { rooms: RoomCard[]; canEdit: bool
         </section>
       ))}
 
-      <SpaceDrawer open={open} onOpenChange={setOpen} initial={BLANK} floors={floors} />
+      <SpaceDrawer open={open} onOpenChange={onOpenChange} initial={BLANK} floors={floors} />
     </>
   )
 }
