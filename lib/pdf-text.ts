@@ -61,11 +61,21 @@ export async function indexDocument(id: string) {
   }
 }
 
-/** Reads any of these that haven't been read yet (older uploads, before search existed), one at a time. */
-export async function ensureIndexed(ids: string[]) {
+/**
+ * Reads any of these that haven't been read yet (older uploads, before search existed), one at a time.
+ * With a time budget it stops starting new ones once that's used up, and returns the ids still to read.
+ */
+export async function ensureIndexed(ids: string[], budgetMs = Infinity) {
+  if (!ids.length) return []
   const todo = await db.document.findMany({
     where: { id: { in: ids }, textStatus: null, mimeType: "application/pdf", storageKey: { not: null } },
+    orderBy: { sizeBytes: "asc" }, // small ones first, so more are searchable sooner
     select: { id: true },
   })
-  for (const d of todo) await indexDocument(d.id)
+  const start = Date.now()
+  for (const [i, d] of todo.entries()) {
+    if (Date.now() - start > budgetMs) return todo.slice(i).map((x) => x.id)
+    await indexDocument(d.id)
+  }
+  return []
 }

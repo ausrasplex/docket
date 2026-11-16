@@ -21,7 +21,7 @@ import { activeCoverId } from "@/components/covers/cover-src"
 import { BrandCard } from "./brand-card"
 import { PartsList } from "./parts-list"
 import { DocGroups, type DocGroup } from "@/components/documents/doc-groups"
-import { DocSearchBox } from "./doc-search"
+import { DocSearchBox } from "@/components/documents/doc-search"
 import type { FixtureInput } from "../actions"
 
 const WARRANTY_TONE = { ok: "bg-t3", soon: "bg-t2", expired: "bg-danger-soft text-danger", none: "bg-surface2" } as const
@@ -399,7 +399,9 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
                 />
               )
               // searching needs something to search: this item's own documents
-              return f.links.length ? <DocSearchBox fixtureId={f.id}>{list}</DocSearchBox> : list
+              return f.links.length ? <DocSearchBox scope={{ fixtureId: f.id }} param="docq">
+                  {list}
+                </DocSearchBox> : list
             })()}
           </CardContent>
         </Card>

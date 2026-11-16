@@ -1,7 +1,5 @@
 import { Suspense } from "react"
-import Link from "next/link"
 import { FileText } from "lucide-react"
-import { cn } from "cn"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
 import { EmptyState } from "@/components/shell/empty-state"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,6 +14,9 @@ import type { DocumentKind } from "@/generated/prisma/enums"
 import { AddLink } from "./add-link"
 import { DocActions } from "@/components/documents/doc-actions"
 import { editable } from "@/components/documents/editable"
+import { DocSearchBox } from "@/components/documents/doc-search"
+import { docPlaces, PLACE_SELECT } from "@/lib/doc-place"
+import { KindChips } from "./kind-chips"
 
 export default function DocumentsPage({ searchParams }: PageProps<"/documents">) {
   return (
@@ -41,14 +42,7 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
       orderBy: { createdAt: "desc" },
       take: 200,
       include: {
-        links: {
-          take: 2,
-          select: { label: true, space: { select: { name: true } }, fixture: { select: { name: true, parent: { select: { name: true } } } },
-            finish: { select: { colourName: true, colourCode: true, product: true, space: { select: { name: true } } } },
-            job: { select: { title: true } },
-            expense: { select: { description: true, vendor: true, job: { select: { title: true } } } },
-          },
-        },
+        links: { take: 2, select: PLACE_SELECT },
       },
     }),
     db.document.groupBy({ by: ["kind"], where: base, _count: true }),
@@ -61,69 +55,46 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="-mx-4 flex flex-1 gap-2 overflow-x-auto px-4 desk:mx-0 desk:flex-wrap desk:px-0">
-          <Chip href="/documents" on={!kind} label={`All · ${total}`} />
-          {chips.map((k) => (
-            <Chip key={k.id} href={`/documents?kind=${k.id}`} on={kind === k.id} label={`${k.label} · ${counts.find((x) => x.kind === k.id)?._count}`} />
-          ))}
-        </div>
+        <KindChips
+          kind={kind ?? null}
+          chips={[{ id: null, label: `All · ${total}` }, ...chips.map((k) => ({ id: k.id, label: `${k.label} · ${counts.find((x) => x.kind === k.id)?._count}` }))]}
+        />
         {atLeast(c.role, "MEMBER") ? <AddLink targets={targets} /> : null}
       </div>
-      <p className="text-[13px] font-medium text-muted-foreground">
-        {kind ? `Showing ${docs.length} of ${total} documents` : `Showing all documents`}
-      </p>
-      {docs.length ? (
-        <Card>
-          <CardContent className="flex flex-col">
-            {docs.map((d) => {
-              const where = d.links
-                .map((l) => {
-                  const place = l.fixture
-                    ? [l.fixture.parent?.name, l.fixture.name].filter(Boolean).join(" › ")
-                    : l.finish
-                      ? `${l.finish.space.name} › ${l.finish.colourName ?? l.finish.colourCode ?? l.finish.product ?? "Paint"}`
-                      : l.job
-                        ? l.job.title
-                        : l.expense
-                          ? [l.expense.job?.title, l.expense.description ?? l.expense.vendor ?? "Cost"].filter(Boolean).join(" › ")
-                          : l.space?.name
-                  return [place, l.label].filter(Boolean).join(" · ")
-                })
-                .filter(Boolean)
-              return (
-                <DocumentRow
-                  key={d.id}
-                  doc={d}
-                  label={where.length ? where.join(", ") : "Inbox"}
-                  trailing={canEdit ? <DocActions doc={editable(d)} targets={targets} /> : null}
-                />
-              )
-            })}
-          </CardContent>
-        </Card>
-      ) : (
-        <EmptyState
-          icon={<FileText className="size-6" />}
-          title="No Documents Yet"
-          body="Manuals, receipts, warranties, certificates and photos all end up here. Start by capturing one."
-          action={{ href: "/capture", label: "Capture" }}
-        />
-      )}
+      <DocSearchBox
+        scope={{ kind: kind ?? null }}
+        param="q"
+        placeholder={kind ? "Search inside these documents" : "Search inside all documents"}
+        framed
+      >
+        <p className="text-[13px] font-medium text-muted-foreground">
+          {kind ? `Showing ${docs.length} of ${total} documents` : `Showing all documents`}
+        </p>
+        {docs.length ? (
+          <Card>
+            <CardContent className="flex flex-col">
+              {docs.map((d) => {
+                return (
+                  <DocumentRow
+                    key={d.id}
+                    doc={d}
+                    label={docPlaces(d.links)}
+                    trailing={canEdit ? <DocActions doc={editable(d)} targets={targets} /> : null}
+                  />
+                )
+              })}
+            </CardContent>
+          </Card>
+        ) : (
+          <EmptyState
+            icon={<FileText className="size-6" />}
+            title="No Documents Yet"
+            body="Manuals, receipts, warranties, certificates and photos all end up here. Start by capturing one."
+            action={{ href: "/capture", label: "Capture" }}
+          />
+        )}
+      </DocSearchBox>
     </>
   )
 }
 
-function Chip({ href, on, label }: { href: string; on: boolean; label: string }) {
-  return (
-    <Link
-      href={href}
-      aria-current={on ? "page" : undefined}
-      className={cn(
-        "flex min-h-11 flex-none items-center rounded-full px-4 text-sm font-semibold whitespace-nowrap",
-        on ? "bg-primary text-primary-foreground" : "border border-outline bg-surface hover:bg-surface2"
-      )}
-    >
-      {label}
-    </Link>
-  )
-}
