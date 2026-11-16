@@ -9,7 +9,7 @@ const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.1.0"
  * Folio's layout: 224px sidebar on desktop, a bottom tab bar with a raised round Add under 860px.
  * Content is capped at 1100px; padding 32px on desktop, 16px on phones.
  */
-export function AppShell({ children, account }: { children: React.ReactNode; account?: React.ReactNode }) {
+export function AppShell({ children, account, top }: { children: React.ReactNode; account?: React.ReactNode; top?: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink desk:flex-row">
       {/* Desktop sidebar */}
@@ -26,7 +26,10 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <main className="flex-1 px-4 pb-6 desk:px-8 desk:pb-12">{children}</main>
+        <main className="flex-1 px-4 pb-6 desk:px-8 desk:pb-12">
+          {top}
+          {children}
+        </main>
         <footer className="mx-4 border-t border-line py-4 text-center text-xs font-medium text-muted-foreground desk:mx-8">
           Docket © v{VERSION}
         </footer>

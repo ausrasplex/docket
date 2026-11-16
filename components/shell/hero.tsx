@@ -8,7 +8,7 @@ export function Hero({ eyebrow, title, children }: { eyebrow?: React.ReactNode; 
         {eyebrow ? <p className="text-sm font-semibold text-hero-muted">{eyebrow}</p> : null}
         <p className="text-[26px] leading-tight font-bold tracking-[-0.02em]">{title}</p>
       </div>
-      <div className="-mx-5 flex snap-x gap-3 overflow-x-auto px-5 desk:mx-0 desk:px-0">{children}</div>
+      <div className="-mx-5 flex snap-x scroll-px-5 gap-3 overflow-x-auto px-5 desk:mx-0 desk:scroll-px-0 desk:px-0">{children}</div>
     </section>
   )
 }

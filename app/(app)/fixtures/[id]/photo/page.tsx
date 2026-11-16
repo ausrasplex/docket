@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { ChevronLeft } from "lucide-react"
-import { PageBody } from "@/components/shell/page-header"
+import { PageBody, PageTitle } from "@/components/shell/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CropEditor } from "@/components/covers/crop-editor"
 import { db } from "@/lib/db"
@@ -46,14 +46,12 @@ async function Body({ params }: { params: PageProps<"/fixtures/[id]/photo">["par
 
   return (
     <>
-      <div className="sticky top-0 z-20 -mx-4 mb-2 border-b border-line bg-[color-mix(in_srgb,var(--bg)_72%,transparent)] px-4 py-2.5 backdrop-blur-[16px] desk:-mx-8 desk:px-8 desk:py-3.5">
-        <div className="mx-auto flex min-h-11 max-w-[1100px] items-center gap-2.5">
-          <Link href={back} aria-label={`Back to ${f.name}`} className="flex size-11 flex-none items-center justify-center rounded-full bg-surface hover:bg-surface2">
-            <ChevronLeft className="size-5" />
-          </Link>
-          <h1 className="min-w-0 flex-1 truncate">Adjust Photo</h1>
-        </div>
-      </div>
+      <PageTitle>
+        <Link href={back} aria-label={`Back to ${f.name}`} className="flex size-11 flex-none items-center justify-center rounded-full bg-surface hover:bg-surface2">
+          <ChevronLeft className="size-5" />
+        </Link>
+        <h1 className="min-w-0 flex-1 truncate">Adjust Photo</h1>
+      </PageTitle>
       <PageBody>
         <p className="-mt-1 text-sm text-muted-foreground">Move and zoom the photo so the square shows the part of {f.name} you want.</p>
         <CropEditor kind="fixture" id={f.id} name={f.name} backHref={back} imageUrl={`/api/files/${f.cover.id}?v=thumb`} initial={validCrop(f.coverCrop)} />

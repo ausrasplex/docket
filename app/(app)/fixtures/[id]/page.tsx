@@ -3,7 +3,7 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { ChevronLeft, ExternalLink, LifeBuoy, Phone } from "lucide-react"
 import { cn } from "cn"
-import { PageBody } from "@/components/shell/page-header"
+import { PageBody, PageTitle } from "@/components/shell/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { db } from "@/lib/db"
@@ -190,17 +190,15 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
 
   return (
     <>
-      <div className="sticky top-0 z-20 -mx-4 mb-2 border-b border-line bg-[color-mix(in_srgb,var(--bg)_72%,transparent)] px-4 py-2.5 backdrop-blur-[16px] desk:-mx-8 desk:px-8 desk:py-3.5">
-        <div className="mx-auto flex min-h-11 max-w-[1100px] items-center gap-2.5">
-          <Link href="/fixtures" aria-label="Back to fixtures" className="flex size-11 flex-none items-center justify-center rounded-full bg-surface hover:bg-surface2">
-            <ChevronLeft className="size-5" />
-          </Link>
-          <h1 className="min-w-0 flex-1 truncate">{f.name}</h1>
-          {canEdit ? (
-            <FixtureMenu id={f.id} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} photo={itemPhoto} photos={photosOf(f.links)} parts={f.parts.map((p) => ({ id: p.id, name: p.name }))} />
-          ) : null}
-        </div>
-      </div>
+      <PageTitle>
+        <Link href="/fixtures" aria-label="Back to fixtures" className="flex size-11 flex-none items-center justify-center rounded-full bg-surface hover:bg-surface2">
+          <ChevronLeft className="size-5" />
+        </Link>
+        <h1 className="min-w-0 flex-1 truncate">{f.name}</h1>
+        {canEdit ? (
+          <FixtureMenu id={f.id} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} photo={itemPhoto} photos={photosOf(f.links)} parts={f.parts.map((p) => ({ id: p.id, name: p.name }))} />
+        ) : null}
+      </PageTitle>
       <PageBody>
         {f.archivedAt ? (
           <p className="rounded-[14px] bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">This item is archived. Restore it from the ⋯ menu.</p>

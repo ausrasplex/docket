@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { ChevronLeft, ChevronRight, FileText, Hammer, Lamp, Paintbrush, Plus } from "lucide-react"
-import { PageBody } from "@/components/shell/page-header"
+import { PageBody, PageTitle } from "@/components/shell/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DocumentRow } from "@/components/documents/document-row"
@@ -96,23 +96,21 @@ async function Room({ params }: { params: PageProps<"/rooms/[id]">["params"] }) 
 
   return (
     <>
-      <div className="sticky top-0 z-20 -mx-4 mb-2 border-b border-line bg-[color-mix(in_srgb,var(--bg)_72%,transparent)] px-4 py-2.5 backdrop-blur-[16px] desk:-mx-8 desk:px-8 desk:py-3.5">
-        <div className="mx-auto flex min-h-11 max-w-[1100px] items-center gap-2.5">
-          <Link href="/rooms" aria-label="Back to rooms" className="flex size-11 flex-none items-center justify-center rounded-full bg-surface hover:bg-surface2">
-            <ChevronLeft className="size-5" />
-          </Link>
-          <h1 className="min-w-0 flex-1 truncate">{room.name}</h1>
-          {canEdit ? (
-            <RoomActions
-              room={{ id: room.id, slug: room.slug, name: room.name, kind: room.kind, parentId: room.parentId, notes: room.notes ?? "" }}
-              archived={!!room.archivedAt}
-              floors={floors}
-              photoRoom={photoRoom}
-              photos={photos}
-            />
-          ) : null}
-        </div>
-      </div>
+      <PageTitle>
+        <Link href="/rooms" aria-label="Back to rooms" className="flex size-11 flex-none items-center justify-center rounded-full bg-surface hover:bg-surface2">
+          <ChevronLeft className="size-5" />
+        </Link>
+        <h1 className="min-w-0 flex-1 truncate">{room.name}</h1>
+        {canEdit ? (
+          <RoomActions
+            room={{ id: room.id, slug: room.slug, name: room.name, kind: room.kind, parentId: room.parentId, notes: room.notes ?? "" }}
+            archived={!!room.archivedAt}
+            floors={floors}
+            photoRoom={photoRoom}
+            photos={photos}
+          />
+        ) : null}
+      </PageTitle>
       <PageBody>
         {room.archivedAt ? (
           <p className="rounded-[14px] bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">This room is archived. Restore it from the ⋯ menu.</p>

@@ -5,6 +5,7 @@ import "@fontsource/plus-jakarta-sans/600.css"
 import "@fontsource/plus-jakarta-sans/700.css"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
+import { ThemeColor } from "@/components/shell/theme-color"
 import { APPLY_APPEARANCE_SCRIPT, DEFAULT_THEME } from "@/lib/theme"
 
 export const metadata: Metadata = {
@@ -15,7 +16,15 @@ export const metadata: Metadata = {
   appleWebApp: { title: "Docket", statusBarStyle: "default" },
 }
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1 }
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // the status bar matches the page background; ThemeColor keeps it in step with the chosen theme
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f1f1f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#14122a" },
+  ],
+}
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -26,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body>
         {children}
+        <ThemeColor />
         <Toaster position="bottom-center" duration={2000} />
       </body>
     </html>

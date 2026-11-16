@@ -18,7 +18,7 @@ import { financialYear, money, plural } from "@/lib/format"
 export default function HomePage() {
   return (
     <>
-      <PageHeader title="Home" />
+      <PageHeader title={<Greeting />} />
       <PageBody>
         <Suspense fallback={<HomeSkeleton />}>
           <Home />
@@ -47,7 +47,7 @@ async function Home() {
 
   return (
     <>
-      <Hero eyebrow={<Greeting />} title={c.property.name}>
+      <Hero title={c.property.name}>
         <StatCard tone="a1" label="Rooms" value={String(rooms)} caption={rooms ? "Open a room to add to it" : "Add rooms to start"} icon={<DoorOpen className="size-5" />} />
         <StatCard tone="a2" label="Fixtures" value={String(fixtures)} caption={`${plural(expiring, "warranty", "warranties")} ending in 90 days`} icon={<Lamp className="size-5" />} />
         <StatCard tone="a3" label="Spent this FY" value={money(spent._sum.amount ?? 0)} caption={fy.label} icon={<Receipt className="size-5" />} />

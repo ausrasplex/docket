@@ -40,13 +40,13 @@ function TabNavLive() {
 
 function TabList({ pathname }: { pathname: string | null }) {
   return (
-    <ul className="flex items-center justify-between gap-0.5">
+    <ul className="flex justify-between gap-0.5">
       {TABS_LEFT.map((n) => (
         <li key={n.href} className="flex-1">
           <TabLink item={n} on={!!pathname && isActive(pathname, n.href)} />
         </li>
       ))}
-      <li className="flex flex-1 justify-center">
+      <li className="flex flex-1 items-start justify-center">
         <AddMenu variant="tab" />
       </li>
       {TABS_RIGHT.map((n) => (
@@ -82,7 +82,7 @@ function TabLink({ item, on }: { item: NavItem; on: boolean }) {
       href={item.href}
       aria-current={on ? "page" : undefined}
       className={cn(
-        "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 py-1.5 text-[11px] font-semibold",
+        "flex min-h-15 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 py-1.5 text-[11px] font-semibold",
         on ? "bg-nav-on text-ink" : "text-muted-foreground"
       )}
     >
