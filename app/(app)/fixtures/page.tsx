@@ -80,6 +80,7 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
             makeModel: [f.brand?.name, f.model].filter(Boolean).join(" "),
             room: f.space?.name ?? null,
             roomId: f.space?.id ?? null,
+            portable: f.portable,
             parts: f.parts.length,
             docs: f._count.links + f.parts.reduce((a, p) => a + p._count.links, 0),
             warranty: warranty(soonest, now),

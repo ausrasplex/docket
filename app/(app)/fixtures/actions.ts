@@ -13,6 +13,8 @@ export type FixtureInput = {
   name: string
   category: FixtureCategory
   spaceId: string | null
+  /** moves around the house, so it has no room (items only, not parts) */
+  portable: boolean
   brand: string // a brand name: matched to an existing brand (any case) or created
   model: string
   serial: string
@@ -79,7 +81,9 @@ function data(input: FixtureInput) {
   return {
     name: input.name.trim(),
     category: input.category,
-    spaceId: input.spaceId,
+    // a portable item has no room
+    spaceId: input.portable ? null : input.spaceId,
+    portable: input.portable,
     model: input.model.trim() || null,
     serial: input.serial.trim() || null,
     productUrl: normaliseUrl(input.productUrl),
@@ -114,6 +118,7 @@ export async function createFixture(input: FixtureInput, parentId: string | null
       householdId: c.householdId,
       propertyId: c.property.id,
       parentId,
+      portable: parentId ? false : input.portable, // parts go where their item goes
       sortOrder: (last?._max.sortOrder ?? 0) + 1,
       brandId: await brandId(c.householdId, input.brand),
       createdById: c.user.id,
@@ -137,7 +142,7 @@ export async function updateFixture(id: string, input: FixtureInput): Promise<Re
   if (bad) return { ok: false, error: bad }
   await db.fixture.update({
     where: { id },
-    data: { ...data(input), brandId: await brandId(c.householdId, input.brand), updatedById: c.user.id },
+    data: { ...data(input), ...(f.parentId ? { portable: false } : {}), brandId: await brandId(c.householdId, input.brand), updatedById: c.user.id },
   })
   refresh()
   return { ok: true }

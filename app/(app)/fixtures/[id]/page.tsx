@@ -46,6 +46,7 @@ function toInput(f: {
   name: string
   category: FixtureInput["category"]
   spaceId: string | null
+  portable: boolean
   brand: { name: string } | null
   model: string | null
   serial: string | null
@@ -66,6 +67,7 @@ function toInput(f: {
     name: f.name,
     category: f.category,
     spaceId: f.spaceId,
+    portable: f.portable,
     brand: f.brand?.name ?? "",
     model: f.model ?? "",
     serial: f.serial ?? "",
@@ -116,7 +118,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
     db.fixture.findMany({
       where: { householdId: c.householdId, parentId: null, id: { not: f.id }, OR: [{ archivedAt: null }, ...(f.docSetId ? [{ docSetId: f.docSetId }] : [])] },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, model: true, docSetId: true, brand: { select: { name: true } }, space: { select: { name: true } } },
+      select: { id: true, name: true, model: true, docSetId: true, portable: true, brand: { select: { name: true } }, space: { select: { name: true } } },
     }),
     db.space.findMany({
       where: { householdId: c.householdId, propertyId: f.propertyId, archivedAt: null, kind: { not: "FLOOR" } },
@@ -200,7 +202,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
   const shareWith = [...others.filter(same), ...others.filter((x) => !same(x))].map((x) => ({
     id: x.id,
     name: x.name,
-    detail: [x.space?.name ?? "No room", [x.brand?.name, x.model].filter(Boolean).join(" ")].filter(Boolean).join(" · "),
+    detail: [x.space?.name ?? (x.portable ? "Portable" : "No room"), [x.brand?.name, x.model].filter(Boolean).join(" ")].filter(Boolean).join(" · "),
     inSet: !!f.docSetId && x.docSetId === f.docSetId,
   }))
   const copies = shareWith.filter((x) => x.inSet).length
@@ -239,6 +241,11 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
                   <Link href={`/rooms/${f.space.slug}`} className="font-semibold text-ink hover:underline">
                     {f.space.name}
                   </Link>
+                </>
+              ) : f.portable ? (
+                <>
+                  {makeModel ? " · " : null}
+                  <span className="font-semibold text-ink">Portable</span>
                 </>
               ) : null}
             </span>

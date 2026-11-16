@@ -23,6 +23,7 @@ export type FixtureCard = {
   makeModel: string
   room: string | null
   roomId: string | null
+  portable: boolean
   parts: number
   docs: number
   warranty: WarrantyState
@@ -59,10 +60,11 @@ export function FixturesList({
     if (!o && openAdd) router.replace("/fixtures", { scroll: false }) // drop ?add=1 so a refresh doesn't reopen it
   }
 
-  // grouped by room, in the rooms' own order; items without a room last
+  // grouped by room, in the rooms' own order; then portable items; items without a room last
   const groups = [
     ...rooms.map((r) => ({ id: r.id, name: r.name, list: items.filter((i) => i.roomId === r.id) })),
-    { id: "none", name: "No Room", list: items.filter((i) => !i.roomId) },
+    { id: "portable", name: "Portable", list: items.filter((i) => !i.roomId && i.portable) },
+    { id: "none", name: "No Room", list: items.filter((i) => !i.roomId && !i.portable) },
   ].filter((g) => g.list.length)
 
   return (

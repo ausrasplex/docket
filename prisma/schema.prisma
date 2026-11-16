@@ -320,6 +320,7 @@ model Fixture {
   purchasePrice    Decimal? @db.Decimal(12, 2)
   replacementValue Decimal? @db.Decimal(12, 2)
   includedInSale   Boolean  @default(true) // fixed to the house (true) or contents you'd take with you (false)
+  portable         Boolean  @default(false) // moves around (a vacuum, a heater, tools): listed under Portable, not a room
 
   /// copies of the same product (the same air conditioner in three bedrooms) share one id; manuals, warranties
   /// and links filed to one are filed to all of them (receipts, invoices and photos stay per copy). lib/doc-sets.ts

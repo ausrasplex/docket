@@ -18,6 +18,7 @@ export const BLANK_FIXTURE: FixtureInput = {
   name: "",
   category: "APPLIANCE",
   spaceId: null,
+  portable: false,
   brand: "",
   model: "",
   serial: "",
@@ -132,11 +133,20 @@ export function FixtureDrawer({
       ) : null}
 
       <Chips label={isPart ? "Room (if different from the item)" : "Room"}>
-        <Chip on={!v.spaceId} onClick={() => set("spaceId", null)}>
+        <Chip on={!v.spaceId && !v.portable} onClick={() => setV((p) => ({ ...p, spaceId: null, portable: false }))}>
           {isPart ? "Same as item" : "None"}
         </Chip>
+        {isPart ? null : (
+          <Chip
+            on={v.portable}
+            // portable things are usually contents you'd take with you, so that box is unticked too (it can be ticked again)
+            onClick={() => setV((p) => (p.portable ? p : { ...p, spaceId: null, portable: true, includedInSale: false }))}
+          >
+            Portable
+          </Chip>
+        )}
         {rooms.map((r) => (
-          <Chip key={r.id} on={v.spaceId === r.id} onClick={() => set("spaceId", r.id)}>
+          <Chip key={r.id} on={v.spaceId === r.id} onClick={() => setV((p) => ({ ...p, spaceId: r.id, portable: false }))}>
             {r.name}
           </Chip>
         ))}
