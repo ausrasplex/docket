@@ -4,10 +4,13 @@ import { Mark } from "@/components/brand/logo"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Initials } from "./initials"
 import { HouseholdSwitch } from "./household-switch"
+import { ThemeSync } from "./theme-sync"
+import { parseMode, parseTheme } from "@/lib/theme"
 
 /**
  * Folio's sticky top bar on every page: the logo (phones only; it is the way Home there), the household
- * switcher, and your avatar on the right. Page background at 72% with a backdrop blur and a 1px underline.
+ * switcher, and your avatar on the right (it opens Settings, where Sign Out is). Page background at 72%
+ * with a backdrop blur and a 1px underline.
  */
 function Bar({ children }: { children: React.ReactNode }) {
   return (
@@ -29,6 +32,7 @@ export async function TopBar() {
   const c = await requireHousehold()
   return (
     <Bar>
+      <ThemeSync theme={parseTheme(c.user.theme as string)} mode={parseMode(c.user.mode as string)} />
       <HomeLink />
       <HouseholdSwitch current={c.householdId} households={c.households.map((h) => ({ id: h.id, name: h.name }))} />
       <Link href="/settings" aria-label="Your profile" className="ml-auto flex-none rounded-full">
