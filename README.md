@@ -24,6 +24,10 @@ npm run lint
 npm run build
 ```
 
+## Backups
+
+Docket backs up every household's records and every uploaded file each night to `BACKUP_DIR` (`./data/backups` locally, `/data/backups` in Docker), and admins can run one from Settings. `scripts/restore.mjs` loads one back into an empty database. See [unraid/README.md](unraid/README.md#backups).
+
 ## Database Changes
 
 Edit `prisma/schema.prisma`, then `npm run db:migrate` to create a migration. The Docker image applies migrations when it starts.

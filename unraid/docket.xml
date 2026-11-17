@@ -20,10 +20,13 @@
   <PostArgs/>
   <CPUset/>
   <Config Name="Web UI port" Target="3000" Default="3000" Mode="tcp" Description="The port Docket is opened on." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
-  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/docket" Mode="rw" Description="Uploaded manuals, receipts and photos (in uploads/). Back this up along with the database." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/docket</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/docket" Mode="rw" Description="Uploaded manuals, receipts and photos (in uploads/). Docket backs these up nightly to the Backups folder." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/docket</Config>
+  <Config Name="Backups" Target="/data/backups" Default="/mnt/user/backups/docket" Mode="rw" Description="Where Docket saves its nightly backups (every record and a copy of every uploaded file). Use a different share or disk from Data, and copy it off this server too." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/backups/docket</Config>
   <Config Name="Database URL" Target="DATABASE_URL" Default="" Description="Docket's PostgreSQL database: postgresql://USER:PASSWORD@UNRAID-IP:5432/docket?schema=public (create an empty docket database first)." Type="Variable" Display="always" Required="true" Mask="true"/>
   <Config Name="Secret key" Target="BETTER_AUTH_SECRET" Default="" Description="32 or more random characters (make one with: openssl rand -base64 32). Signs sign-in sessions; changing it signs everyone out." Type="Variable" Display="always" Required="true" Mask="true"/>
   <Config Name="Docket address" Target="BETTER_AUTH_URL" Default="" Description="The address people open Docket on, used for sign-in and invite links, for example http://192.168.1.10:3000 or https://docket.example.com." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Other addresses" Target="DOCKET_TRUSTED_ORIGINS" Default="" Description="Any other addresses Docket is opened on, comma-separated (for example the LAN address when the main one is a domain)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Backups kept" Target="BACKUP_KEEP" Default="14" Description="How many nightly database backups to keep (uploaded files are kept until the backup folder is cleared)." Type="Variable" Display="advanced" Required="false" Mask="false">14</Config>
+  <Config Name="Backup hour" Target="BACKUP_HOUR" Default="3" Description="The hour (0 to 23, in the time zone below) the nightly backup runs from." Type="Variable" Display="advanced" Required="false" Mask="false">3</Config>
   <Config Name="Time zone" Target="TZ" Default="Australia/Melbourne" Description="Your time zone." Type="Variable" Display="always" Required="false" Mask="false">Australia/Melbourne</Config>
 </Container>

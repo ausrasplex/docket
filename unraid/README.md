@@ -18,10 +18,25 @@
 
 ## Backups
 
-Back up both:
+Docket backs itself up every night (from 3 am, or soon after it starts if it was off) into the **Backups** folder, `/mnt/user/backups/docket` by default:
 
-- the **database** (your usual Postgres backup), and
-- the **Data** folder (`/mnt/user/appdata/docket`), which holds every uploaded manual, receipt and photo.
+- `database/docket-2026-11-17-030000.json.gz`: every record of every household. The newest 14 are kept (**Backups kept**).
+- `uploads/`: a copy of every uploaded manual, receipt and photo. New files are added each night and nothing is removed, so any kept database backup still finds its files.
+- `status.json`: how the last run went, also shown in **Settings** › **Backups** (admins and the owner), where **Back Up Now** runs one straight away.
+
+Keep the Backups share on a different disk from `appdata` if you can, and **copy it off the server**: to another computer, a USB drive or cloud storage (an Unraid backup plugin, rclone or Syncthing on the share all work). A backup on the same machine won't survive the machine failing.
+
+### Restoring
+
+1. Create a new, empty database (for example `docket_restore`) and point the container's **Database URL** at it. Start the container once so it creates Docket's tables, using **the same Docket version** the backup was made with.
+2. Run the restore inside the container:
+   ```
+   docker exec -it Docket node scripts/restore.mjs /data/backups/database/docket-2026-11-17-030000.json.gz
+   ```
+   It refuses to touch a database that already has records in it, loads everything in one go (all or nothing), then copies the backed-up files into the Data folder.
+3. Restart the container and sign in as before.
+
+`node scripts/restore.mjs <file> --check` only reads a backup and says what it holds.
 
 ## Updating
 

@@ -26,6 +26,11 @@ if ! [ -w "${UPLOAD_DIR:-/data/uploads}" ]; then
   exit 1
 fi
 
+mkdir -p "${BACKUP_DIR:-/data/backups}" 2>/dev/null || true
+if ! [ -w "${BACKUP_DIR:-/data/backups}" ]; then
+  echo "Docket: can't write to the backups folder ${BACKUP_DIR:-/data/backups}, so nightly backups will fail. It should belong to nobody:users (99:100)." >&2
+fi
+
 # Apply any database updates in this version. PostgreSQL can still be starting (after a reboot, say), so try for a
 # couple of minutes before giving up.
 tries=0

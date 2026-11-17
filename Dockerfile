@@ -22,17 +22,19 @@ RUN mkdir -p /opt/prisma-cli && cd /opt/prisma-cli && npm init -y >/dev/null \
 FROM node:22-bookworm-slim AS run
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates tini && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 UPLOAD_DIR=/data/uploads
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 UPLOAD_DIR=/data/uploads BACKUP_DIR=/data/backups
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 COPY --from=build /app/prisma ./prisma
+# restoring a backup: docker exec -it Docket node scripts/restore.mjs /data/backups/database/docket-….json.gz
+COPY scripts/restore.mjs ./scripts/restore.mjs
 COPY --from=build /opt/prisma-cli /opt/prisma-cli
 COPY docker/prisma.config.mjs /opt/prisma-cli/prisma.config.mjs
 COPY docker/entrypoint.sh /entrypoint.sh
 # a script checked out on Windows may have CRLF line endings, which sh cannot run
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod 755 /entrypoint.sh \
-  && mkdir -p /data/uploads /app/.next/cache && chown -R 99:100 /data /app/.next
+  && mkdir -p /data/uploads /data/backups /app/.next/cache && chown -R 99:100 /data /app/.next
 # Unraid's usual user and group (nobody:users), so uploaded files in /data belong to it
 USER 99:100
 EXPOSE 3000

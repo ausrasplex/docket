@@ -164,3 +164,12 @@ export async function switchHousehold(householdId: string): Promise<Result> {
   revalidatePath("/", "layout")
   return { ok: true }
 }
+
+/** Backs up the server now (admins and the owner). The same backup as the nightly one. */
+export async function backUpNow(): Promise<Result> {
+  await requireHousehold("ADMIN")
+  const { runBackup } = await import("@/lib/backup")
+  const r = await runBackup()
+  revalidatePath("/settings")
+  return r.ok ? { ok: true } : { ok: false, error: `The backup failed: ${r.error}` }
+}
