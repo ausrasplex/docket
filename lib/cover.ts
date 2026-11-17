@@ -81,8 +81,15 @@ export async function saveCrop(kind: CoverKind, householdId: string, id: string,
   try {
     const { data } = await readStored(rec.cover.storageKey)
     const rotated = await sharp(data).rotate().toBuffer({ resolveWithObject: true })
-    const area = cropPixels(crop, rotated.info.width, rotated.info.height)
-    out = await sharp(rotated.data).extract(area).resize(512, 512, { fit: "cover" }).webp({ quality: 82 }).toBuffer()
+    const { area, pad } = cropPixels(crop, rotated.info.width, rotated.info.height)
+    let square = sharp(rotated.data).extract(area)
+    if (pad.left || pad.top || pad.right || pad.bottom) {
+      // zoomed out past the photo's edges: cut what's there, then add the white margin (a separate pass,
+      // since sharp would otherwise apply the margin after the resize)
+      const cut = await square.extend({ ...pad, background: { r: 255, g: 255, b: 255, alpha: 1 } }).flatten({ background: "#ffffff" }).raw().toBuffer({ resolveWithObject: true })
+      square = sharp(cut.data, { raw: { width: cut.info.width, height: cut.info.height, channels: cut.info.channels } })
+    }
+    out = await square.resize(512, 512, { fit: "cover" }).webp({ quality: 82 }).toBuffer()
   } catch {
     return "That photo couldn't be cropped."
   }

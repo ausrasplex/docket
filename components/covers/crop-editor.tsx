@@ -10,8 +10,16 @@ import type { Crop } from "@/lib/crop"
 import { saveCoverCrop } from "@/app/(app)/covers/actions"
 
 const MAX_ZOOM = 4
+/** How far past the photo the crop can reach when zoomed out: its longer side times this, padded with white. */
+const ROOM = 1.25
 
-/** Where the square crop sits, in the photo's own pixels: its centre and its zoom (1 = the largest square). */
+/** The smallest zoom: the whole photo fits with a white margin around it. */
+const minZoom = (n: { w: number; h: number }) => Math.min(n.w, n.h) / (Math.max(n.w, n.h) * ROOM)
+
+/**
+ * Where the square crop sits, in the photo's own pixels: its centre and its zoom (1 = the largest square inside
+ * the photo; below 1 the square reaches past the photo's edges and the gap is filled with white).
+ */
 type View = { cx: number; cy: number; z: number }
 
 /**
@@ -56,11 +64,18 @@ export function CropEditor({
 
   const side = (v: View, n: { w: number; h: number }) => Math.min(n.w, n.h) / v.z
 
-  /** Keeps the crop inside the photo and the zoom within range. */
+  /**
+   * Keeps the zoom within range and the crop where it shows the most photo: inside the photo along a side the
+   * square is shorter than, and around the photo (never cutting it off) along a side it's longer than.
+   */
   const clamp = useCallback((v: View, n: { w: number; h: number }): View => {
-    const z = Math.min(MAX_ZOOM, Math.max(1, v.z))
+    const z = Math.min(MAX_ZOOM, Math.max(minZoom(n), v.z))
     const s = Math.min(n.w, n.h) / z
-    return { z, cx: Math.min(n.w - s / 2, Math.max(s / 2, v.cx)), cy: Math.min(n.h - s / 2, Math.max(s / 2, v.cy)) }
+    const fit = (c: number, len: number) => {
+      const [a, b] = [s / 2, len - s / 2]
+      return Math.min(Math.max(a, b), Math.max(Math.min(a, b), c))
+    }
+    return { z, cx: fit(v.cx, n.w), cy: fit(v.cy, n.h) }
   }, [])
 
   const centred = (n: { w: number; h: number }): View => ({ cx: n.w / 2, cy: n.h / 2, z: 1 })
@@ -210,8 +225,9 @@ export function CropEditor({
           onPointerCancel={onPointerUp}
           onKeyDown={onKeyDown}
           className={cn(
-            "relative aspect-square w-full touch-none overflow-hidden rounded-3xl bg-hero select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sel",
-            active ? "cursor-grabbing" : "cursor-grab"
+            "relative aspect-square w-full touch-none overflow-hidden rounded-3xl select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sel",
+            active ? "cursor-grabbing" : "cursor-grab",
+            view ? "bg-white" : "bg-hero"
           )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- private, auth-checked file */}
@@ -239,13 +255,13 @@ export function CropEditor({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Zoom out" disabled={!view || view.z <= 1} onClick={() => zoomAt((view?.z ?? 1) / 1.25)}>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Zoom out" disabled={!view || !nat || view.z <= minZoom(nat) + 0.001} onClick={() => zoomAt((view?.z ?? 1) / 1.25)}>
             <ZoomOut />
           </Button>
           <input
             type="range"
             aria-label="Zoom"
-            min={1}
+            min={nat ? minZoom(nat) : 1}
             max={MAX_ZOOM}
             step={0.01}
             value={view?.z ?? 1}
@@ -297,7 +313,7 @@ export function CropEditor({
 function Preview({ px, src, nat, view, className }: { px: number; src: string; nat: { w: number; h: number } | null; view: View | null; className?: string }) {
   const k = nat && view ? px / (Math.min(nat.w, nat.h) / view.z) : 1
   return (
-    <span className={cn("relative block flex-none overflow-hidden rounded-2xl bg-surface2", className)} style={{ width: px, height: px }}>
+    <span className={cn("relative block flex-none overflow-hidden rounded-2xl", nat && view ? "bg-white" : "bg-surface2", className)} style={{ width: px, height: px }}>
       {nat && view ? (
         // eslint-disable-next-line @next/next/no-img-element -- private, auth-checked file
         <img
