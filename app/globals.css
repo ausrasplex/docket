@@ -292,3 +292,21 @@ html body[data-scroll-locked] {
 .pdf-text ::selection {
   background: color-mix(in srgb, var(--sel) 30%, transparent);
 }
+
+/* Printing (the insurance report): the light colours whatever the theme, and no app chrome (see app-shell.tsx) */
+@media print {
+  :root,
+  :root.dark,
+  :root[data-theme] {
+    --bg: #fff !important;
+    --surface: #fff !important;
+    --surface2: #f3f3f6 !important;
+    --ink: #15151a !important;
+    --mutedInk: #5b5b66 !important;
+    --line: #d8d8de !important;
+    color-scheme: light;
+  }
+  @page {
+    margin: 14mm 12mm;
+  }
+}

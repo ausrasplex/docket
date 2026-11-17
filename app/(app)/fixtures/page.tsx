@@ -1,5 +1,7 @@
 import { Suspense } from "react"
-import { Lamp, Plus } from "lucide-react"
+import Link from "next/link"
+import { Lamp, Plus, ShieldCheck } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
 import { HeaderAction } from "@/components/shell/header-action"
 import { MemberOnly } from "@/components/shell/member-only"
@@ -21,11 +23,19 @@ export default function FixturesPage({ searchParams }: PageProps<"/fixtures">) {
       <PageHeader
         title="Fixtures"
         actions={
-          <Suspense fallback={null}>
-            <MemberOnly>
-              <HeaderAction add="1" icon={<Plus />} label="Add Item" />
-            </MemberOnly>
-          </Suspense>
+          <>
+            <Button asChild variant="outline" size="sm" className="max-desk:size-11 max-desk:px-0">
+              <Link href="/exports/insurance" title="Insurance Report">
+                <ShieldCheck />
+                <span className="max-desk:sr-only">Insurance Report</span>
+              </Link>
+            </Button>
+            <Suspense fallback={null}>
+              <MemberOnly>
+                <HeaderAction add="1" icon={<Plus />} label="Add Item" />
+              </MemberOnly>
+            </Suspense>
+          </>
         }
       />
       <PageBody>

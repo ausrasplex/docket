@@ -141,3 +141,12 @@ export async function diskSpace() {
     return null
   }
 }
+
+/** Whether a stored file is on disk (exports leave out files that have gone missing). */
+export async function hasStored(key: string) {
+  try {
+    return (await stat(/*turbopackIgnore: true*/ resolveKey(key))).isFile()
+  } catch {
+    return false
+  }
+}

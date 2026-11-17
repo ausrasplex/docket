@@ -13,7 +13,7 @@ export function AppShell({ children, top }: { children: React.ReactNode; top?: R
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink desk:flex-row">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 z-30 hidden h-screen w-56 flex-none flex-col gap-7 self-start border-r border-line px-[18px] py-7 desk:flex">
+      <aside className="sticky top-0 z-30 hidden print:hidden! h-screen w-56 flex-none flex-col gap-7 self-start border-r border-line px-[18px] py-7 desk:flex">
         <Link href="/" className="px-2" aria-label="Docket home">
           <Logo />
         </Link>
@@ -25,17 +25,18 @@ export function AppShell({ children, top }: { children: React.ReactNode; top?: R
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <main className="flex-1 px-4 pb-6 desk:px-8 desk:pb-12">
-          {top}
+        <main className="flex-1 px-4 pb-6 desk:px-8 desk:pb-12 print:p-0">
+          {/* contents: the sticky top bar still sticks to the page, not to this wrapper */}
+          <div className="contents print:hidden">{top}</div>
           {children}
         </main>
-        <footer className="mx-4 border-t border-line py-4 text-center text-xs font-medium text-muted-foreground desk:mx-8">
+        <footer className="mx-4 border-t print:hidden border-line py-4 text-center text-xs font-medium text-muted-foreground desk:mx-8">
           Docket © v{VERSION}
         </footer>
       </div>
 
       {/* Phone tab bar */}
-      <nav aria-label="Main" className="sticky bottom-0 z-25 border-t border-line bg-surface px-2 py-1.5 desk:hidden">
+      <nav aria-label="Main" className="sticky bottom-0 z-25 print:hidden border-t border-line bg-surface px-2 py-1.5 desk:hidden">
         <Suspense fallback={<TabNav static />}>
           <TabNav />
         </Suspense>
