@@ -1,0 +1,10 @@
+-- AlterEnum
+ALTER TYPE "FixtureCategory" ADD VALUE 'PHONE_TABLET';
+ALTER TYPE "FixtureCategory" ADD VALUE 'CAMERA';
+ALTER TYPE "FixtureCategory" ADD VALUE 'FURNITURE';
+ALTER TYPE "FixtureCategory" ADD VALUE 'SOLAR';
+ALTER TYPE "FixtureCategory" ADD VALUE 'TOOLS';
+ALTER TYPE "FixtureCategory" ADD VALUE 'FITNESS';
+ALTER TYPE "FixtureCategory" ADD VALUE 'MUSIC';
+ALTER TYPE "FixtureCategory" ADD VALUE 'JEWELLERY';
+ALTER TYPE "FixtureCategory" ADD VALUE 'ART';
