@@ -69,6 +69,9 @@ export async function duplicateFixture(id: string, copies: DuplicateCopy[]): Pro
     brandId: x.brandId,
     model: x.model,
     productUrl: x.productUrl,
+    store: x.store,
+    colour: x.colour,
+    size: x.size,
     coverId: x.coverId,
     // without its cropped file the photo shows centred, so the crop goes too
     coverCrop: cropKey && x.coverCrop ? (x.coverCrop as Prisma.InputJsonValue) : Prisma.DbNull,

@@ -29,6 +29,8 @@ export async function loadFinishes(where: Prisma.FinishWhereInput): Promise<Fini
       colourCode: f.colourCode ?? "",
       hex: f.hex ?? "",
       sheen: f.sheen ?? "",
+      size: f.size ?? "",
+      store: f.store ?? "",
       appliedAt: f.appliedAt ? f.appliedAt.toISOString().slice(0, 10) : null,
       leftoverLocation: f.leftoverLocation ?? "",
       notes: f.notes ?? "",

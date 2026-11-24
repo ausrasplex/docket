@@ -19,6 +19,9 @@ export type FixtureInput = {
   model: string
   serial: string
   productUrl: string
+  store: string
+  colour: string
+  size: string
   purchasedAt: string | null // yyyy-mm-dd
   installedAt: string | null
   warrantyExpiresAt: string | null
@@ -87,6 +90,9 @@ function data(input: FixtureInput) {
     model: input.model.trim() || null,
     serial: input.serial.trim() || null,
     productUrl: normaliseUrl(input.productUrl),
+    store: input.store.trim() || null,
+    colour: input.colour.trim() || null,
+    size: input.size.trim() || null,
     purchasedAt: day(input.purchasedAt),
     installedAt: day(input.installedAt),
     warrantyExpiresAt: day(input.warrantyExpiresAt),

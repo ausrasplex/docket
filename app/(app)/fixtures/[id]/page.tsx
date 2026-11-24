@@ -51,6 +51,9 @@ function toInput(f: {
   model: string | null
   serial: string | null
   productUrl: string | null
+  store: string | null
+  colour: string | null
+  size: string | null
   purchasedAt: Date | null
   installedAt: Date | null
   warrantyExpiresAt: Date | null
@@ -72,6 +75,9 @@ function toInput(f: {
     model: f.model ?? "",
     serial: f.serial ?? "",
     productUrl: f.productUrl ?? "",
+    store: f.store ?? "",
+    colour: f.colour ?? "",
+    size: f.size ?? "",
     purchasedAt: iso(f.purchasedAt),
     installedAt: iso(f.installedAt),
     warrantyExpiresAt: iso(f.warrantyExpiresAt),
@@ -292,6 +298,9 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
                 ) : null}
                 <Row k="Model" v={f.model} mono />
                 <Row k="Serial" v={f.serial} mono />
+                {f.colour ? <Row k="Colour / Finish" v={f.colour} /> : null}
+                {f.size ? <Row k="Size" v={f.size} /> : null}
+                {f.store ? <Row k="Where Bought" v={f.store} /> : null}
                 <Row k="Bought" v={date(f.purchasedAt)} />
                 <Row k="Installed" v={date(f.installedAt)} />
                 <dt className="font-semibold text-muted-foreground">Warranty</dt>

@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { ChevronRight, ShieldCheck } from "lucide-react"
+import { ChevronRight, ClipboardList, ShieldCheck } from "lucide-react"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -102,7 +102,17 @@ async function Settings() {
             <CardTitle>Exports</CardTitle>
             <CardDescription>Your records gathered up for someone else.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-2.5">
+            <Link href="/exports/schedule" className="flex items-center gap-3 rounded-2xl bg-surface2 p-3 hover:bg-sel-soft">
+              <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-a2 text-on-a">
+                <ClipboardList className="size-[18px]" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <b className="text-sm font-bold">Fixtures and Finishes</b>
+                <span className="text-xs font-medium text-muted-foreground">Every product by trade and room, with store, colour and size: a PDF to print and keep</span>
+              </span>
+              <ChevronRight className="size-5 flex-none text-muted-foreground" />
+            </Link>
             <Link href="/exports/insurance" className="flex items-center gap-3 rounded-2xl bg-surface2 p-3 hover:bg-sel-soft">
               <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-a1 text-on-a">
                 <ShieldCheck className="size-[18px]" />

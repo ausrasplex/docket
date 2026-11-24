@@ -30,9 +30,12 @@ const nextConfig: NextConfig = {
     "/api/documents": ["./node_modules/@img/**/*", "./node_modules/sharp/**/*", "./node_modules/pdfjs-dist/legacy/build/**/*"],
     // searching an item's documents reads older PDFs' text the first time
     "/fixtures/[id]": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
+    // the schedule PDF loads its fonts by path, and shrinks item photos with sharp
+    "/api/exports/schedule": ["./node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-*-normal.woff", "./node_modules/@img/**/*", "./node_modules/sharp/**/*"],
   },
   // pdf.js reads PDFs' text on the server; it loads its own worker module, so it isn't bundled
-  serverExternalPackages: ["pdfjs-dist"],
+  // react-pdf lays out the schedule PDF; it's left to Node too, with its layout engine's WebAssembly
+  serverExternalPackages: ["pdfjs-dist", "@react-pdf/renderer"],
   turbopack: {
     rules: {
       "*.css": {

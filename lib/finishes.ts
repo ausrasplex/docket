@@ -23,6 +23,8 @@ export const FINISH_KINDS: { id: FinishKind; label: string }[] = [
   { id: "WALLPAPER", label: "Wallpaper" },
   { id: "STONE", label: "Stone" },
   { id: "LAMINATE", label: "Laminate" },
+  { id: "GROUT", label: "Grout" },
+  { id: "SEALANT", label: "Sealant or Silicone" },
   { id: "OTHER", label: "Other" },
 ]
 
