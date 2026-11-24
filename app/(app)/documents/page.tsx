@@ -89,7 +89,7 @@ async function Documents({ searchParams }: { searchParams: PageProps<"/documents
                     key={d.id}
                     doc={d}
                     label={docPlaces(d.links)}
-                    trailing={canEdit ? <DocActions doc={editable(d)} targets={targets} /> : null}
+                    trailing={canEdit ? <DocActions doc={editable(d)} /> : null}
                   />
                 )
               })}

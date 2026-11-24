@@ -23,6 +23,9 @@ export const BLANK_FIXTURE: FixtureInput = {
   model: "",
   serial: "",
   productUrl: "",
+  store: "",
+  colour: "",
+  size: "",
   purchasedAt: null,
   installedAt: null,
   warrantyExpiresAt: null,
@@ -164,6 +167,18 @@ export function FixtureDrawer({
       </div>
       <FieldLabel label="Product Page (optional)" hint="This exact model on the maker's site. The brand's support site is set once on the brand.">
         <Input value={v.productUrl} onChange={(e) => set("productUrl", e.target.value)} placeholder="daikin.com.au/products/…" inputMode="url" />
+      </FieldLabel>
+
+      <div className="grid grid-cols-2 gap-3">
+        <FieldLabel label="Colour / Finish">
+          <Input value={v.colour} onChange={(e) => set("colour", e.target.value)} placeholder="White, brushed nickel" />
+        </FieldLabel>
+        <FieldLabel label="Size">
+          <Input value={v.size} onChange={(e) => set("size", e.target.value)} placeholder="90mm cutout, 8kW" />
+        </FieldLabel>
+      </div>
+      <FieldLabel label="Where Bought" hint="The shop or supplier, for buying another to match.">
+        <Input value={v.store} onChange={(e) => set("store", e.target.value)} placeholder="Bunnings, Tradelink" />
       </FieldLabel>
 
       <Section title="Dates and Warranty" />

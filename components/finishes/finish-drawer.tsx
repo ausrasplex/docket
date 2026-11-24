@@ -147,6 +147,14 @@ export function FinishDrawer({
           ))}
         </Chips>
       ) : null}
+      <div className="grid grid-cols-2 gap-3">
+        <FieldLabel label="Size">
+          <Input value={v.size} onChange={(e) => set("size", e.target.value)} placeholder={isPaint ? "4 L" : "1200 x 600mm"} />
+        </FieldLabel>
+        <FieldLabel label="Where Bought">
+          <Input value={v.store} onChange={(e) => set("store", e.target.value)} placeholder={isPaint ? "Bunnings" : "National Tiles"} />
+        </FieldLabel>
+      </div>
       <FieldLabel label="Colour's Web Page (optional)">
         <Input value={v.productUrl} onChange={(e) => set("productUrl", e.target.value)} placeholder="dulux.com.au/colour/…" inputMode="url" />
       </FieldLabel>

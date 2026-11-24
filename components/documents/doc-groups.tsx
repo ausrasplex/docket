@@ -1,8 +1,8 @@
 "use client"
 
-import { useRef, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Camera, Check, FileUp, Globe, Inbox, Loader2, Plus } from "lucide-react"
+import { Camera, Check, Files, FileUp, Globe, Inbox, Loader2, Plus, Search } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import { AddLinkDrawer } from "@/components/documents/add-link-drawer"
 import { docKind, LINK_ICON } from "@/lib/documents"
 import { PART_ICON } from "@/lib/fixtures"
 import type { DocumentKind } from "@/generated/prisma/enums"
-import { fileTo, unlink, type Target } from "@/app/(app)/documents/actions"
+import { existingFor, fileMany, fileTo, unlink, type ExistingDoc, type Target } from "@/app/(app)/documents/actions"
 import { DocMenu } from "./doc-menu"
 
 export type DocGroup = {
@@ -34,6 +34,7 @@ export function DocGroups({ groups, inbox, canEdit }: { groups: DocGroup[]; inbo
   const [editing, setEditing] = useState<EditableDoc | null>(null)
   const [linkFor, setLinkFor] = useState<DocGroup | null>(null)
   const [inboxFor, setInboxFor] = useState<DocGroup | null>(null)
+  const [existingTo, setExistingTo] = useState<DocGroup | null>(null)
   const [, start] = useTransition()
 
   const act = (fn: () => Promise<{ ok: boolean; error?: string }>, done: string) =>
@@ -86,7 +87,7 @@ export function DocGroups({ groups, inbox, canEdit }: { groups: DocGroup[]; inbo
           ) : (
             <p className="py-2 text-sm text-muted-foreground">Nothing yet.</p>
           )}
-          {canEdit ? <AddButtons group={g} onLink={() => setLinkFor(g)} onInbox={() => setInboxFor(g)} inboxCount={inbox.length} /> : null}
+          {canEdit ? <AddButtons group={g} onLink={() => setLinkFor(g)} onInbox={() => setInboxFor(g)} onExisting={() => setExistingTo(g)} inboxCount={inbox.length} /> : null}
         </section>
       ))}
 
@@ -97,13 +98,14 @@ export function DocGroups({ groups, inbox, canEdit }: { groups: DocGroup[]; inbo
         target={linkFor?.target}
         targetName={linkFor?.name}
       />
+      <AddExisting group={existingTo} onOpenChange={(o) => !o && setExistingTo(null)} />
       <FromInbox group={inboxFor} inbox={inbox} onOpenChange={(o) => !o && setInboxFor(null)} />
     </div>
   )
 }
 
 /** Upload, photograph, link or pull from the inbox, straight into one group. */
-function AddButtons({ group, onLink, onInbox, inboxCount }: { group: DocGroup; onLink: () => void; onInbox: () => void; inboxCount: number }) {
+function AddButtons({ group, onLink, onInbox, onExisting, inboxCount }: { group: DocGroup; onLink: () => void; onInbox: () => void; onExisting: () => void; inboxCount: number }) {
   const router = useRouter()
   const files = useRef<HTMLInputElement>(null)
   const camera = useRef<HTMLInputElement>(null)
@@ -152,6 +154,10 @@ function AddButtons({ group, onLink, onInbox, inboxCount }: { group: DocGroup; o
           <DropdownMenuItem onSelect={onLink}>
             <Globe />
             Add Web Link
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onExisting}>
+            <Files />
+            Add Existing
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onInbox} disabled={!inboxCount}>
             <Inbox />
@@ -246,6 +252,111 @@ function FromInbox({ group, inbox, onOpenChange }: { group: DocGroup | null; inb
           <Input value={label} onChange={(e) => setLabel(e.target.value)} />
         </FieldLabel>
       ) : null}
+    </Drawer>
+  )
+}
+
+/** Pick documents already in Docket (filed elsewhere or not at all) and file them here too: one manual for several items. */
+function AddExisting({ group, onOpenChange }: { group: DocGroup | null; onOpenChange: (o: boolean) => void }) {
+  const [docs, setDocs] = useState<ExistingDoc[] | null>(null)
+  const [picked, setPicked] = useState<string[]>([])
+  const [q, setQ] = useState("")
+  const [pending, start] = useTransition()
+  const [shown, setShown] = useState<DocGroup | null>(null)
+  if (group !== shown) {
+    setShown(group)
+    setDocs(null)
+    setPicked([])
+    setQ("")
+  }
+  const target = group?.target
+  useEffect(() => {
+    if (!target) return
+    let live = true
+    existingFor(target).then((r) => {
+      if (!live) return
+      if (!r.ok) return void toast.error(r.error)
+      setDocs(r.docs)
+    })
+    return () => {
+      live = false
+    }
+  }, [target])
+
+  const needle = q.trim().toLowerCase()
+  const list = docs && needle ? docs.filter((d) => `${d.title} ${d.place ?? ""} ${docKind(d.kind).label}`.toLowerCase().includes(needle)) : (docs ?? [])
+  const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+  return (
+    <Drawer
+      open={!!group}
+      onOpenChange={onOpenChange}
+      title="Add Existing"
+      description={group ? `Choose documents already in Docket to file to ${group.name} as well. They stay where they are.` : undefined}
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={pending || !picked.length}
+            onClick={() =>
+              start(async () => {
+                if (!group) return
+                const r = await fileMany(picked, group.target)
+                if (!r.ok) return void toast.error(r.error)
+                toast(`${r.filed === 1 ? "1 document" : `${r.filed} documents`} filed to ${group.name}`)
+                onOpenChange(false)
+              })
+            }
+          >
+            File {picked.length || ""}
+          </Button>
+        </>
+      }
+    >
+      <label className="flex h-11 flex-none items-center gap-2 rounded-full border border-line bg-surface2 px-3.5">
+        <Search className="size-4 text-muted-foreground" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find by title, type or where it's filed" className="w-full bg-transparent text-base outline-none" />
+      </label>
+      {!docs ? (
+        <div className="flex flex-col gap-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-14 animate-pulse rounded-2xl bg-surface2" />
+          ))}
+        </div>
+      ) : !docs.length ? (
+        <p className="text-sm text-muted-foreground">Every document in Docket is already filed here.</p>
+      ) : !list.length ? (
+        <p className="text-sm text-muted-foreground">Nothing matches “{q}”.</p>
+      ) : (
+        <ul className="flex flex-col">
+          {list.map((d) => {
+            const on = picked.includes(d.id)
+            const Icon = d.isLink ? LINK_ICON : docKind(d.kind).icon
+            return (
+              <li key={d.id} className="border-t border-line first:border-t-0">
+                <button type="button" role="checkbox" aria-checked={on} onClick={() => toggle(d.id)} className="flex w-full cursor-pointer items-center gap-3 py-2.5 text-left">
+                  {d.hasThumb ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- private, auth-checked file
+                    <img src={`/api/files/${d.id}?v=thumb`} alt="" className="size-11 flex-none rounded-xl object-cover" loading="lazy" />
+                  ) : (
+                    <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-surface2 text-muted-foreground">
+                      <Icon className="size-5" />
+                    </span>
+                  )}
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <b className="truncate text-sm font-bold">{d.title}</b>
+                    <span className="truncate text-xs font-medium text-muted-foreground">{[docKind(d.kind).label, d.when, d.place ?? "Not filed"].join(" · ")}</span>
+                  </span>
+                  <span className={cn("flex size-6 flex-none items-center justify-center rounded-full border-2", on ? "border-sel bg-sel text-white" : "border-outline")}>
+                    {on ? <Check className="size-3.5" /> : null}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </Drawer>
   )
 }

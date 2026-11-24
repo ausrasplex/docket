@@ -5,7 +5,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { db } from "@/lib/db"
 import { requireHousehold } from "@/lib/dal"
 import { atLeast } from "@/lib/roles"
-import { fileTargets } from "@/lib/targets"
 import { CaptureButtons } from "./capture-buttons"
 import { Inbox } from "./inbox"
 
@@ -28,14 +27,11 @@ export default function CapturePage() {
 
 async function InboxSection() {
   const c = await requireHousehold()
-  const [docs, targets] = await Promise.all([
-    db.document.findMany({
-      where: { householdId: c.householdId, archivedAt: null, links: { none: {} } },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    }),
-    fileTargets(c.householdId, c.property.id),
-  ])
+  const docs = await db.document.findMany({
+    where: { householdId: c.householdId, archivedAt: null, links: { none: {} } },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  })
   const users = await db.user.findMany({
     where: { id: { in: [...new Set(docs.map((d) => d.createdById).filter((x): x is string => !!x))] } },
     select: { id: true, name: true },
@@ -52,7 +48,6 @@ async function InboxSection() {
       {docs.length ? (
         <Inbox
           canEdit={atLeast(c.role, "MEMBER")}
-          targets={targets}
           items={docs.map((d) => ({
             id: d.id,
             title: d.title,

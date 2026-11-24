@@ -20,6 +20,8 @@ export const BLANK_FINISH: FinishInput = {
   colourCode: "",
   hex: "",
   sheen: "",
+  size: "",
+  store: "",
   appliedAt: null,
   leftoverLocation: "",
   notes: "",
@@ -27,5 +29,5 @@ export const BLANK_FINISH: FinishInput = {
 
 /** Copies a finish's colour details for another room (keeps colour, brand, product, sheen; clears the rest). */
 export function sameColour(i: FinishInput): FinishInput {
-  return { ...BLANK_FINISH, kind: i.kind, brand: i.brand, product: i.product, productUrl: i.productUrl, colourName: i.colourName, colourCode: i.colourCode, hex: i.hex, sheen: i.sheen, surface: i.surface }
+  return { ...BLANK_FINISH, kind: i.kind, brand: i.brand, product: i.product, productUrl: i.productUrl, colourName: i.colourName, colourCode: i.colourCode, hex: i.hex, sheen: i.sheen, size: i.size, store: i.store, surface: i.surface }
 }

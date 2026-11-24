@@ -4,7 +4,6 @@ import { useState } from "react"
 import { FileText, FolderInput, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FileDrawer, type EditableDoc } from "@/components/documents/file-drawer"
-import type { TargetOption } from "@/components/documents/target-picker"
 import { docHref, docKind, LINK_ICON, viewHref } from "@/lib/documents"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { ConfirmDelete } from "@/components/documents/doc-menu"
@@ -24,7 +23,7 @@ export type InboxItem = {
 }
 
 /** Captures not yet filed anywhere, as a grid of previews. Tap one to name and file it. */
-export function Inbox({ items, targets, canEdit }: { items: InboxItem[]; targets: TargetOption[]; canEdit: boolean }) {
+export function Inbox({ items, canEdit }: { items: InboxItem[]; canEdit: boolean }) {
   const [editing, setEditing] = useState<EditableDoc | null>(null)
   const [deleting, setDeleting] = useState<{ id: string; title: string; isLink: boolean } | null>(null)
   return (
@@ -80,7 +79,7 @@ export function Inbox({ items, targets, canEdit }: { items: InboxItem[]; targets
         })}
       </div>
       {deleting ? <ConfirmDelete open onOpenChange={(o) => !o && setDeleting(null)} doc={deleting} /> : null}
-      <FileDrawer doc={editing} targets={targets} onOpenChange={(o) => !o && setEditing(null)} />
+      <FileDrawer doc={editing} onOpenChange={(o) => !o && setEditing(null)} />
     </>
   )
 }

@@ -20,6 +20,8 @@ export type FinishInput = {
   colourCode: string
   hex: string
   sheen: string
+  size: string
+  store: string
   appliedAt: string | null
   leftoverLocation: string
   notes: string
@@ -59,6 +61,8 @@ function data(input: FinishInput) {
     colourCode: input.colourCode.trim().toUpperCase() || null,
     hex: normaliseHex(input.hex),
     sheen: input.sheen.trim() || null,
+    size: input.size.trim() || null,
+    store: input.store.trim() || null,
     appliedAt: day && !Number.isNaN(day.getTime()) ? day : null,
     leftoverLocation: input.leftoverLocation.trim() || null,
     notes: input.notes.trim() || null,

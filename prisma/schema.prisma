@@ -308,6 +308,11 @@ model Fixture {
   // this exact product on the maker's website; the item page falls back to the brand's support site
   productUrl String?
 
+  // for the fixtures and finishes schedule (Settings › Exports)
+  store  String? // where it was bought: "Bunnings", "Tradelink"
+  colour String? // colour or finish: "White", "Brushed nickel", "Warm white 3000K"
+  size   String? // "90mm cutout", "1200 x 300mm", "8kW"
+
   /// a photo shown in place of the category icon (like a room's photo), with its square crop and cropped copy
   coverId      String?
   cover        Document? @relation("FixtureCover", fields: [coverId], references: [id], onDelete: SetNull)
@@ -378,6 +383,8 @@ enum FinishKind {
   WALLPAPER
   STONE
   LAMINATE
+  GROUT
+  SEALANT
   OTHER
 }
 
@@ -422,6 +429,8 @@ model Finish {
   colourCode String? // "SW1F1"
   hex        String? // swatch shown in the app, e.g. "#f2efe6" (approximate)
   sheen      String? // Low sheen, Semi-gloss…
+  size       String? // tile or board size: "1200 x 600mm"
+  store      String? // where it was bought: "National Tiles"
 
   appliedAt        DateTime? @db.Date
   jobId            String?
