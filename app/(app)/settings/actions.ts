@@ -9,6 +9,7 @@ import { db } from "@/lib/db"
 import { logActivity, requireHousehold, requireUser } from "@/lib/dal"
 import { baseUrl } from "@/lib/base-url"
 import { hashToken, newToken } from "@/lib/tokens"
+import { isServerAdmin } from "@/lib/households"
 import { atLeast, ROLE_LABELS } from "@/lib/roles"
 import { parseMode, parseTheme } from "@/lib/theme"
 import type { Role } from "@/generated/prisma/enums"
@@ -40,9 +41,40 @@ export async function createInvite(input: { role: Role; expiresInDays: number | 
   return { ok: true, url: `${await baseUrl()}/invite/${token}` }
 }
 
+/**
+ * A link that lets someone start a household of their own on this server (server admins only). It belongs to
+ * no household: the invitee becomes the owner of a new one, and the admin isn't a member of it.
+ */
+export async function createHouseholdInvite(input: { expiresInDays: number | null; maxUses: number }): Promise<Result<{ url: string }>> {
+  const c = await requireHousehold()
+  if (!(await isServerAdmin(c.user.id))) return { ok: false, error: "Only the server's admin can invite new households." }
+  const maxUses = Math.min(Math.max(1, Math.floor(input.maxUses)), 50)
+  const token = newToken()
+  await db.invite.create({
+    data: {
+      householdId: c.householdId, // where it was made (the column is required); it grants nothing here
+      kind: "HOUSEHOLD",
+      tokenHash: hashToken(token),
+      maxUses,
+      expiresAt: input.expiresInDays ? new Date(Date.now() + input.expiresInDays * DAY) : null,
+      createdById: c.user.id,
+    },
+  })
+  revalidatePath("/settings")
+  return { ok: true, url: `${await baseUrl()}/invite/${token}` }
+}
+
+export async function revokeHouseholdInvite(id: string): Promise<Result> {
+  const c = await requireHousehold()
+  if (!(await isServerAdmin(c.user.id))) return { ok: false, error: "Only the server's admin can do that." }
+  await db.invite.updateMany({ where: { id, kind: "HOUSEHOLD" }, data: { revokedAt: new Date() } })
+  revalidatePath("/settings")
+  return { ok: true }
+}
+
 export async function revokeInvite(id: string): Promise<Result> {
   const c = await requireHousehold("ADMIN")
-  await db.invite.updateMany({ where: { id, householdId: c.householdId }, data: { revokedAt: new Date() } })
+  await db.invite.updateMany({ where: { id, householdId: c.householdId, kind: "JOIN" }, data: { revokedAt: new Date() } })
   revalidatePath("/settings")
   return { ok: true }
 }

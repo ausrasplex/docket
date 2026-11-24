@@ -38,13 +38,13 @@ export const auth = betterAuth({
   },
   hooks: {
     // Sign-up is open only for the very first account (who then sets up a household).
-    // After that, a valid invite token must come with the request.
+    // After that, a valid invite token (to join a household, or to start one) must come with the request.
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== "/sign-up/email") return
       const anyone = await db.user.count()
       if (anyone === 0) return
       const token = ctx.headers?.get(INVITE_HEADER)
-      if (!token || !(await findUsableInvite(token, "JOIN"))) {
+      if (!token || !(await findUsableInvite(token, ["JOIN", "HOUSEHOLD"]))) {
         throw new APIError("FORBIDDEN", { message: "You need an invite link to create an account." })
       }
     }),

@@ -8,6 +8,7 @@ import { auth, INVITE_HEADER } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getSession } from "@/lib/dal"
 import { findUsableInvite } from "@/lib/invites"
+import { readPlace, startPlace } from "@/lib/households"
 
 export type FormState = { error?: string } | undefined
 
@@ -40,7 +41,9 @@ export async function signUpFirst(_: FormState, f: FormData): Promise<FormState>
   const v = checkNewAccount(f)
   if ("error" in v) return v
   try {
-    await auth.api.signUpEmail({ body: v, headers: await headers() })
+    const res = await auth.api.signUpEmail({ body: v, headers: await headers() })
+    // the first account on the server runs it
+    if ((await db.user.count()) === 1) await db.user.update({ where: { id: res.user.id }, data: { serverAdmin: true } })
   } catch (e) {
     return { error: message(e) }
   }
@@ -108,6 +111,45 @@ export async function acceptInvite(token: string, _: FormState, f: FormData): Pr
     return true
   })
   if (!joined) return { error: "This invite link has just been used up." }
+  redirect("/")
+}
+
+/** Accepts a new-household link: creates the account first when needed, then sets up their own household. */
+export async function acceptHouseholdInvite(token: string, _: FormState, f: FormData): Promise<FormState> {
+  const invite = await findUsableInvite(token, "HOUSEHOLD")
+  if (!invite) return { error: "This invite link has expired or has already been used." }
+  const place = readPlace(f)
+  if ("error" in place) return place
+
+  let user = (await getSession())?.user
+  if (!user) {
+    const v = checkNewAccount(f)
+    if ("error" in v) return v
+    try {
+      const h = new Headers(await headers())
+      h.set(INVITE_HEADER, token)
+      user = (await auth.api.signUpEmail({ body: v, headers: h })).user
+    } catch (e) {
+      return { error: message(e) }
+    }
+  }
+
+  const started = await db.$transaction(async (tx) => {
+    // count the use only while the link still has uses left (two people racing for a single-use link)
+    const used = await tx.invite.updateMany({
+      where: { id: invite.id, uses: { lt: invite.maxUses }, revokedAt: null },
+      data: { uses: { increment: 1 } },
+    })
+    if (used.count === 0) return false
+    await tx.inviteUse.upsert({
+      where: { inviteId_userId: { inviteId: invite.id, userId: user.id } },
+      create: { inviteId: invite.id, userId: user.id },
+      update: {},
+    })
+    await startPlace(tx, user, place)
+    return true
+  })
+  if (!started) return { error: "This invite link has just been used up." }
   redirect("/")
 }
 

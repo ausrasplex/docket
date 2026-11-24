@@ -8,8 +8,10 @@ import { db } from "@/lib/db"
 import { requireHousehold } from "@/lib/dal"
 import { date } from "@/lib/format"
 import { atLeast } from "@/lib/roles"
+import { isServerAdmin } from "@/lib/households"
 import { Appearance } from "./appearance"
 import { BackupsCard } from "./backups"
+import { ServerCard } from "./server"
 import { Members } from "./members"
 import { HouseholdName, Profile } from "./profile"
 import { StorageCard } from "./storage"
@@ -30,7 +32,7 @@ export default function SettingsPage() {
 async function Settings() {
   const c = await requireHousehold()
   const admin = atLeast(c.role, "ADMIN")
-  const [members, invites] = await Promise.all([
+  const [members, invites, serverAdmin] = await Promise.all([
     db.membership.findMany({
       where: { householdId: c.householdId },
       include: { user: { select: { id: true, name: true, email: true } } },
@@ -43,6 +45,7 @@ async function Settings() {
           orderBy: { createdAt: "desc" },
         })
       : [],
+    isServerAdmin(c.user.id),
   ])
   const open = invites.filter((i) => i.uses < i.maxUses)
 
@@ -84,6 +87,11 @@ async function Settings() {
         {admin ? (
           <Suspense fallback={<Skeleton className="h-64 rounded-3xl" />}>
             <BackupsCard />
+          </Suspense>
+        ) : null}
+        {serverAdmin ? (
+          <Suspense fallback={<Skeleton className="h-64 rounded-3xl" />}>
+            <ServerCard currentHouseholdId={c.householdId} />
           </Suspense>
         ) : null}
       </div>

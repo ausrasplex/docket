@@ -41,6 +41,10 @@ model User {
   // the household shown when signing in (users can belong to several)
   activeHouseholdId String?
 
+  // runs this Docket server: can invite people to start their own household, and sees every
+  // household's storage total (never their records). The first account on the server.
+  serverAdmin Boolean @default(false)
+
   sessions       Session[]
   accounts       Account[]
   memberships    Membership[]
@@ -168,6 +172,7 @@ model Invite {
 enum InviteKind {
   JOIN
   RESET
+  HOUSEHOLD // starts a new household of the invitee's own (made by a server admin; householdId is where it was made)
 }
 
 model InviteUse {
