@@ -20,7 +20,8 @@ export async function comingUp(householdId: string, propertyId: string, now = ne
       odometer: true,
       registrationExpiresAt: true,
       warrantyExpiresAt: true,
-      parent: { select: { id: true, name: true } },
+      serviceEnabled: true,
+      parent: { select: { id: true, name: true, serviceEnabled: true } },
       servicePlans: { where: { archivedAt: null }, select: { id: true, name: true, everyMonths: true, everyKm: true, bookedFor: true, bookedWith: true } },
       serviceRecords: { orderBy: [{ date: "desc" }, { createdAt: "desc" }], select: { date: true, odometer: true, plans: { select: { id: true } } } },
     },
@@ -33,7 +34,9 @@ export async function comingUp(householdId: string, propertyId: string, now = ne
     const itemId = f.parent?.id ?? f.id
     const item = f.parent ? `${f.parent.name} › ${f.name}` : f.name
     const readings = f.serviceRecords.map((r) => ({ date: r.date, odometer: r.odometer }))
-    for (const p of f.servicePlans) {
+    // an item with servicing turned off (or a part of one) keeps its routines but stops reminding
+    const servicing = f.serviceEnabled && (f.parent?.serviceEnabled ?? true)
+    for (const p of servicing ? f.servicePlans : []) {
       const done = f.serviceRecords.filter((r) => r.plans.some((x) => x.id === p.id)).map((r) => ({ date: r.date, odometer: r.odometer }))
       // a booking, or the sooner of the due date and the estimate (a km interval as a date)
       const due = serviceOutlook(p, done, readings, f.odometer, now).status

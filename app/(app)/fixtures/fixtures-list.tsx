@@ -3,11 +3,11 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { ChevronRight, FileText } from "lucide-react"
+import { ArrowDown, ArrowUp, ChevronRight, FileText, ShieldAlert, ShieldCheck, ShieldX, Tag } from "lucide-react"
 import { cn } from "cn"
 import { withoutAdd } from "@/components/shell/header-action"
 import { category, type WarrantyState } from "@/lib/fixtures"
-import { plural } from "@/lib/format"
+import { money, plural } from "@/lib/format"
 import type { FixtureCategory } from "@/generated/prisma/enums"
 import { BLANK_FIXTURE, FixtureDrawer } from "./fixture-drawer"
 import { CategoryTile } from "@/components/fixtures/category-tile"
@@ -27,6 +27,8 @@ export type FixtureCard = {
   parts: number
   docs: number
   warranty: WarrantyState
+  /** the lowest and highest recorded shop price, when it's tracked */
+  prices: { low: number; high: number } | null
 }
 
 const WARRANTY_TONE = { ok: "bg-t3", soon: "bg-t2", expired: "bg-danger-soft text-danger", none: "" } as const
@@ -89,12 +91,39 @@ export function FixturesList({
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
                     {f.due ? <span className={cn("rounded-full px-2.5 py-1", DUE_TONE[f.due.tone])}>{f.due.text}</span> : null}
-                    {f.warranty.tone !== "none" ? <span className={cn("rounded-full px-2.5 py-1", WARRANTY_TONE[f.warranty.tone])}>{f.warranty.text}</span> : null}
+                    {f.warranty.tone !== "none" ? (
+                      <span className={cn("flex items-center gap-1 rounded-full px-2.5 py-1", WARRANTY_TONE[f.warranty.tone])} title={f.warranty.text}>
+                        <WarrantyIcon tone={f.warranty.tone} />
+                        {f.warranty.date}
+                        <span className="sr-only">{f.warranty.text}</span>
+                      </span>
+                    ) : null}
                     {f.parts ? <span className="rounded-full bg-surface2 px-2.5 py-1">{plural(f.parts, "part")}</span> : null}
                     <span className="flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1">
                       <FileText className="size-3.5" />
                       {f.docs}
                     </span>
+                    {f.prices ? (
+                      f.prices.low === f.prices.high ? (
+                        <span className="flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1 tabular-nums" title="Shop price recorded (unchanged so far)">
+                          <Tag className="size-3.5" />
+                          {money(f.prices.low)}
+                        </span>
+                      ) : (
+                        <>
+                          <span className="flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1 tabular-nums" title="Lowest shop price recorded">
+                            <ArrowDown className="size-3.5" />
+                            <span className="sr-only">Lowest</span>
+                            {money(f.prices.low)}
+                          </span>
+                          <span className="flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1 tabular-nums" title="Highest shop price recorded">
+                            <ArrowUp className="size-3.5" />
+                            <span className="sr-only">Highest</span>
+                            {money(f.prices.high)}
+                          </span>
+                        </>
+                      )
+                    ) : null}
                   </div>
                 </Link>
               )
@@ -106,4 +135,9 @@ export function FixturesList({
       <FixtureDrawer open={open} onOpenChange={onOpenChange} initial={initial} rooms={rooms} brands={brands} />
     </>
   )
+}
+
+function WarrantyIcon({ tone }: { tone: WarrantyState["tone"] }) {
+  const Icon = tone === "expired" ? ShieldX : tone === "soon" ? ShieldAlert : ShieldCheck
+  return <Icon className="size-3.5" aria-hidden="true" />
 }

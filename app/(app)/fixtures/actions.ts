@@ -28,6 +28,8 @@ export type FixtureInput = {
   purchasePrice: string
   replacementValue: string
   includedInSale: boolean
+  /** shows the Service section (items only) */
+  serviceEnabled: boolean
   notes: string
   // vehicles
   registration: string
@@ -99,6 +101,7 @@ function data(input: FixtureInput) {
     purchasePrice: money(input.purchasePrice) ?? null,
     replacementValue: money(input.replacementValue) ?? null,
     includedInSale: input.includedInSale,
+    serviceEnabled: input.serviceEnabled,
     notes: input.notes.trim() || null,
     registration: input.registration.trim().toUpperCase() || null,
     vin: input.vin.trim().toUpperCase() || null,

@@ -32,6 +32,7 @@ export const BLANK_FIXTURE: FixtureInput = {
   purchasePrice: "",
   replacementValue: "",
   includedInSale: true,
+  serviceEnabled: true,
   notes: "",
   registration: "",
   vin: "",
@@ -267,6 +268,16 @@ export function FixtureDrawer({
           <span className="text-xs text-muted-foreground">Fixed in place, so it&apos;s included if you sell. Untick for things you&apos;d take with you.</span>
         </span>
       </label>
+
+      {!isPart ? (
+        <label className="flex min-h-15 cursor-pointer items-center gap-3 rounded-xl bg-surface2 px-3.5 py-2.5">
+          <input type="checkbox" checked={v.serviceEnabled} onChange={(e) => setV((p) => ({ ...p, serviceEnabled: e.target.checked }))} className="size-5 accent-[var(--sel)]" />
+          <span className="flex flex-col">
+            <b className="text-sm">Track Servicing</b>
+            <span className="text-xs text-muted-foreground">Shows the Service section, for regular care like an annual service. Untick for things that never need it.</span>
+          </span>
+        </label>
+      ) : null}
 
       <FieldLabel label="Notes (optional)">
         <Textarea value={v.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Filter sizes, settings, quirks" />

@@ -33,7 +33,8 @@ export async function calendarEvents(userId: string, base: string, now = new Dat
       odometer: true,
       warrantyExpiresAt: true,
       registrationExpiresAt: true,
-      parent: { select: { id: true, name: true } },
+      serviceEnabled: true,
+      parent: { select: { id: true, name: true, serviceEnabled: true } },
       property: { select: { name: true } },
       household: { select: { name: true } },
       servicePlans: { where: { archivedAt: null }, select: { id: true, name: true, everyMonths: true, everyKm: true, bookedFor: true, bookedWith: true } },
@@ -50,7 +51,9 @@ export async function calendarEvents(userId: string, base: string, now = new Dat
     const location = households.size > 1 ? `${f.property.name} (${f.household.name})` : f.property.name
     const readings = f.serviceRecords.map((r) => ({ date: r.date, odometer: r.odometer }))
 
-    for (const p of f.servicePlans) {
+    // an item with servicing turned off (or a part of one) keeps its routines but stops reminding
+    const servicing = f.serviceEnabled && (f.parent?.serviceEnabled ?? true)
+    for (const p of servicing ? f.servicePlans : []) {
       const done = f.serviceRecords.filter((r) => r.plans.some((x) => x.id === p.id)).map((r) => ({ date: r.date, odometer: r.odometer }))
       const o = serviceOutlook(p, done, readings, f.odometer, now)
       if (!o.next || !inWindow(o.next.date)) continue

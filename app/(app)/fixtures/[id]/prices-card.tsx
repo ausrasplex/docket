@@ -97,7 +97,7 @@ function SourceRow({ s, canEdit, onEdit }: { s: SourceSummary; canEdit: boolean;
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem onSelect={check}>
                 <RefreshCw />
                 Check Now

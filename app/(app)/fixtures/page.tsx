@@ -61,6 +61,8 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
         cover: { select: { id: true, archivedAt: true } },
         parts: { where: { archivedAt: null }, select: { warrantyExpiresAt: true, _count: { select: { links: true } } } },
         _count: { select: { links: true } },
+        // the lowest and highest price recorded at any of its shops (lib/prices.ts)
+        priceSources: { select: { checks: { select: { price: true } } } },
       },
     }),
     db.space.findMany({
@@ -105,6 +107,7 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
             parts: f.parts.length,
             docs: f._count.links + f.parts.reduce((a, p) => a + p._count.links, 0),
             warranty: warranty(soonest, now),
+            prices: priceRange(f.priceSources.flatMap((s) => s.checks.map((k) => Number(k.price.toString())))),
           }
         })}
       />
@@ -118,3 +121,5 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
     </>
   )
 }
+
+const priceRange = (all: number[]) => (all.length ? { low: Math.min(...all), high: Math.max(...all) } : null)

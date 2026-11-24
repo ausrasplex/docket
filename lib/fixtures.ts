@@ -61,14 +61,14 @@ export const CATEGORIES: { id: FixtureCategory; label: string; icon: LucideIcon;
 export const category = (c: FixtureCategory) => CATEGORIES.find((x) => x.id === c) ?? CATEGORIES.at(-1)!
 export const PART_ICON = Cable
 
-export type WarrantyState = { tone: "ok" | "soon" | "expired" | "none"; text: string }
+export type WarrantyState = { tone: "ok" | "soon" | "expired" | "none"; text: string; /** "3 Mar 2031", for compact chips */ date?: string }
 
 /** "Warranty to 3 Mar 2031", "Warranty ends in 21 days", "Warranty ended 4 Jan 2025". */
 export function warranty(expires: Date | null | undefined, now = new Date()): WarrantyState {
   if (!expires) return { tone: "none", text: "No warranty recorded" }
   const days = Math.ceil((expires.getTime() - now.getTime()) / 86_400_000)
   const d = expires.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
-  if (days < 0) return { tone: "expired", text: `Warranty ended ${d}` }
-  if (days <= 90) return { tone: "soon", text: days === 0 ? "Warranty ends today" : `Warranty ends in ${days} day${days === 1 ? "" : "s"}` }
-  return { tone: "ok", text: `Warranty to ${d}` }
+  if (days < 0) return { tone: "expired", text: `Warranty ended ${d}`, date: d }
+  if (days <= 90) return { tone: "soon", text: days === 0 ? "Warranty ends today" : `Warranty ends in ${days} day${days === 1 ? "" : "s"}`, date: d }
+  return { tone: "ok", text: `Warranty to ${d}`, date: d }
 }

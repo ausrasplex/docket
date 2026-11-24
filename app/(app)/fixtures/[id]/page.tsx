@@ -62,6 +62,7 @@ function toInput(f: {
   purchasePrice: { toString(): string } | null
   replacementValue: { toString(): string } | null
   includedInSale: boolean
+  serviceEnabled: boolean
   notes: string | null
   registration: string | null
   vin: string | null
@@ -86,6 +87,7 @@ function toInput(f: {
     purchasePrice: f.purchasePrice?.toString() ?? "",
     replacementValue: f.replacementValue?.toString() ?? "",
     includedInSale: f.includedInSale,
+    serviceEnabled: f.serviceEnabled,
     notes: f.notes ?? "",
     registration: f.registration ?? "",
     vin: f.vin ?? "",
@@ -390,6 +392,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
 
         <PricesCard fixtureId={f.id} itemName={f.name} sources={prices} canEdit={canEdit} everyDays={priceSettings().days} />
 
+        {f.serviceEnabled ? (
         <Card>
           <CardHeader>
             <CardTitle>Service</CardTitle>
@@ -410,6 +413,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
             />
           </CardContent>
         </Card>
+        ) : null}
 
         <Card id="documents" className="scroll-mt-24">
           <CardHeader>
