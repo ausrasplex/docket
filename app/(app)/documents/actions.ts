@@ -8,6 +8,10 @@ import { atLeast } from "@/lib/roles"
 import { removeStored } from "@/lib/storage"
 import { releaseCovers } from "@/lib/cover"
 import { setMembers, shareFiled, sharedKind } from "@/lib/doc-sets"
+import { docPlaces, PLACE_SELECT } from "@/lib/doc-place"
+import { date } from "@/lib/format"
+import { fileTargets } from "@/lib/targets"
+import type { TargetOption } from "@/components/documents/target-picker"
 import type { DocumentKind } from "@/generated/prisma/enums"
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
@@ -84,6 +88,117 @@ export async function fileTo(id: string, target: Target, label: string | null): 
   refresh()
   revalidatePath("/fixtures", "layout")
   return { ok: true }
+}
+
+const FILE_TYPES = ["space", "fixture", "finish", "job"] as const
+const sameTarget = (a: Target, b: Target) => a.type === b.type && a.id === b.id
+/** A link's target, for the kinds of place the picker offers (costs are filed from their job, not here). */
+function linkTarget(l: { spaceId: string | null; fixtureId: string | null; finishId: string | null; jobId: string | null }): Target | null {
+  for (const t of FILE_TYPES) {
+    const id = l[`${t}Id`]
+    if (id) return { type: t, id }
+  }
+  return null
+}
+
+/** Everywhere this document could be filed, and where it's filed now: for ticking places in Edit Details. */
+export async function filingOf(id: string): Promise<Result<{ options: TargetOption[]; filed: Target[] }>> {
+  const c = await requireHousehold("MEMBER")
+  if (!(await ownDoc(c.householdId, id))) return { ok: false, error: "That document no longer exists." }
+  const [options, links] = await Promise.all([
+    fileTargets(c.householdId, c.property.id),
+    db.documentLink.findMany({ where: { documentId: id }, select: { spaceId: true, fixtureId: true, finishId: true, jobId: true } }),
+  ])
+  return { ok: true, options, filed: links.map(linkTarget).filter((t) => t != null) }
+}
+
+/**
+ * Files a document to exactly these places: adds the newly ticked ones (with `label`) and takes it off the
+ * unticked ones. Places the picker doesn't offer (an archived item, an older job, a cost) are left alone.
+ */
+export async function setFiling(id: string, wanted: Target[], label: string | null): Promise<Result<{ added: number; removed: number }>> {
+  const c = await requireHousehold("MEMBER")
+  const doc = await ownDoc(c.householdId, id)
+  if (!doc) return { ok: false, error: "That document no longer exists." }
+  const options = await fileTargets(c.householdId, c.property.id)
+  const offered = (t: Target) => options.some((o) => sameTarget(o, t))
+  if (!wanted.every(offered)) return { ok: false, error: "One of those places no longer exists. Reopen and try again." }
+
+  const links = await db.documentLink.findMany({ where: { documentId: id }, select: { id: true, spaceId: true, fixtureId: true, finishId: true, jobId: true } })
+  const current = links.map((l) => ({ link: l, t: linkTarget(l) }))
+  const add = wanted.filter((t) => !current.some((x) => x.t && sameTarget(x.t, t)))
+  const drop = current.filter((x) => x.t && offered(x.t) && !wanted.some((t) => sameTarget(t, x.t!)))
+  const keepItems = new Set(wanted.filter((t) => t.type === "fixture").map((t) => t.id))
+
+  await db.$transaction(async (tx) => {
+    for (const { link, t } of drop) {
+      // a shared document comes off every copy of the item (except copies still ticked)
+      if (t!.type === "fixture" && sharedKind(doc.kind)) {
+        const copies = (await setMembers(t!.id, tx)).filter((f) => !keepItems.has(f))
+        await tx.documentLink.deleteMany({ where: { documentId: id, fixtureId: { in: copies } } })
+      } else await tx.documentLink.deleteMany({ where: { id: link.id } })
+    }
+    if (add.length) await tx.documentLink.createMany({ data: add.map((t) => ({ documentId: id, ...linkData(t), label: label?.trim() || null })) })
+    await shareFiled([...keepItems], tx)
+  })
+
+  if (add.length) {
+    const names = add.map((t) => options.find((o) => sameTarget(o, t))!.name)
+    await logActivity(c, { action: "linked", entityType: "Document", entityId: id, summary: `${c.user.name} filed “${doc.title}” to ${names.join(", ")}` })
+  }
+  refresh()
+  revalidatePath("/fixtures", "layout")
+  revalidatePath("/jobs", "layout")
+  revalidatePath("/paint")
+  return { ok: true, added: add.length, removed: drop.length }
+}
+
+export type ExistingDoc = { id: string; title: string; kind: DocumentKind; hasThumb: boolean; isLink: boolean; when: string; place: string | null }
+
+/** The household's documents not yet filed to this place, newest first: for "Add Existing". */
+export async function existingFor(target: Target): Promise<Result<{ docs: ExistingDoc[] }>> {
+  const c = await requireHousehold("MEMBER")
+  if (!(await targetName(c.householdId, target))) return { ok: false, error: "That place no longer exists." }
+  const docs = await db.document.findMany({
+    where: { householdId: c.householdId, archivedAt: null, links: { none: linkData(target) } },
+    orderBy: { createdAt: "desc" },
+    take: 1000,
+    select: { id: true, title: true, kind: true, thumbnailKey: true, url: true, createdAt: true, documentDate: true, links: { take: 2, select: PLACE_SELECT } },
+  })
+  return {
+    ok: true,
+    docs: docs.map((d) => ({
+      id: d.id,
+      title: d.title,
+      kind: d.kind,
+      hasThumb: !!d.thumbnailKey,
+      isLink: !!d.url,
+      when: date(d.documentDate ?? d.createdAt),
+      place: docPlaces(d.links) || null,
+    })),
+  }
+}
+
+/** Files several existing documents to one place (Add Existing on an item, part or job). */
+export async function fileMany(ids: string[], target: Target): Promise<Result<{ filed: number }>> {
+  const c = await requireHousehold("MEMBER")
+  const name = await targetName(c.householdId, target)
+  if (!name) return { ok: false, error: "That place no longer exists." }
+  const docs = await db.document.findMany({ where: { id: { in: ids }, householdId: c.householdId }, select: { id: true, title: true } })
+  if (!docs.length) return { ok: false, error: "Those documents no longer exist." }
+  await db.documentLink.createMany({ data: docs.map((d) => ({ documentId: d.id, ...linkData(target) })), skipDuplicates: true })
+  if (target.type === "fixture") await shareFiled([target.id])
+  await logActivity(c, {
+    action: "linked",
+    entityType: "Document",
+    entityId: docs[0].id,
+    summary: docs.length === 1 ? `${c.user.name} filed “${docs[0].title}” to ${name}` : `${c.user.name} filed ${docs.length} documents to ${name}`,
+  })
+  refresh()
+  revalidatePath("/fixtures", "layout")
+  revalidatePath("/jobs", "layout")
+  revalidatePath("/paint")
+  return { ok: true, filed: docs.length }
 }
 
 export async function unlink(linkId: string): Promise<Result> {

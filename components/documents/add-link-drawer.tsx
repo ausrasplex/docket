@@ -34,9 +34,9 @@ export function AddLinkDrawer({
   const [title, setTitle] = useState("")
   const [label, setLabel] = useState("")
   const [kind, setKind] = useState<DocumentKind>("MANUAL")
-  const [picked, setPicked] = useState<Target | null>(null)
+  const [picked, setPicked] = useState<Target[]>([])
   const [pending, start] = useTransition()
-  const target = fixed ?? picked
+  const target = fixed ?? picked[0] ?? null
 
   const save = () =>
     start(async () => {
@@ -47,7 +47,7 @@ export function AddLinkDrawer({
       setTitle("")
       setLabel("")
       setKind("MANUAL")
-      setPicked(null)
+      setPicked([])
       onOpenChange(false)
     })
 
