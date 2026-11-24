@@ -8,6 +8,8 @@ import { requireHousehold } from "@/lib/dal"
 import { date, money } from "@/lib/format"
 import { insuranceReport, lineValue, type InsuranceLine } from "@/lib/insurance"
 import { PrintButton } from "./print-button"
+import { priceReport } from "@/lib/prices"
+import { RecordedPrices } from "@/components/prices/recorded-prices"
 
 export const metadata = { title: "Insurance Report · Docket" }
 
@@ -42,7 +44,7 @@ const value = (n: number | null) => (n == null ? "" : money(n))
 
 async function Report() {
   const c = await requireHousehold()
-  const r = await insuranceReport(c.householdId, c.property.id)
+  const [r, prices] = await Promise.all([insuranceReport(c.householdId, c.property.id), priceReport(c.householdId, c.property.id)])
   const made = new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: process.env.TZ || undefined })
 
   if (!r.totals.items) {
@@ -128,6 +130,19 @@ async function Report() {
           </section>
         )
       })}
+
+      {prices.items ? (
+        <section className="flex flex-col gap-3 rounded-3xl bg-surface p-5 print:break-before-page print:rounded-none print:p-0">
+          <div className="flex flex-col gap-1 border-b border-line pb-2">
+            <h2>Recorded Retail Prices</h2>
+            <p className="text-sm font-medium text-muted-foreground">
+              What these items sell for at shops, read from the shops&apos; websites about once a week
+              {prices.since ? ` since ${date(prices.since)}` : ""}. Kept separate from the values above, and not counted in their totals.
+            </p>
+          </div>
+          <RecordedPrices report={prices} />
+        </section>
+      ) : null}
 
       <p className="text-xs font-medium text-muted-foreground">
         Values are as recorded in Docket on {made}. Replacement values are the household&apos;s own estimates. Receipts, invoices, warranties and

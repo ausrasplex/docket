@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { ChevronRight, ClipboardList, ShieldCheck } from "lucide-react"
+import { ChevronRight, ClipboardList, ShieldCheck, TrendingUp } from "lucide-react"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -11,6 +11,7 @@ import { atLeast } from "@/lib/roles"
 import { isServerAdmin } from "@/lib/households"
 import { Appearance } from "./appearance"
 import { BackupsCard } from "./backups"
+import { PriceChecksCard } from "./price-checks"
 import { ServerCard } from "./server"
 import { CalendarCard } from "./calendar"
 import { Members } from "./members"
@@ -91,6 +92,11 @@ async function Settings() {
             <BackupsCard />
           </Suspense>
         ) : null}
+        {admin ? (
+          <Suspense fallback={<Skeleton className="h-48 rounded-3xl" />}>
+            <PriceChecksCard householdId={c.householdId} />
+          </Suspense>
+        ) : null}
         {serverAdmin ? (
           <Suspense fallback={<Skeleton className="h-64 rounded-3xl" />}>
             <ServerCard currentHouseholdId={c.householdId} />
@@ -131,6 +137,16 @@ async function Settings() {
               <span className="flex min-w-0 flex-1 flex-col">
                 <b className="text-sm font-bold">Insurance Report</b>
                 <span className="text-xs font-medium text-muted-foreground">Every item with its serial, value, photo and receipt, to print or download</span>
+              </span>
+              <ChevronRight className="size-5 flex-none text-muted-foreground" />
+            </Link>
+            <Link href="/exports/prices" className="flex items-center gap-3 rounded-2xl bg-surface2 p-3 hover:bg-sel-soft">
+              <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-a3 text-on-a">
+                <TrendingUp className="size-[18px]" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <b className="text-sm font-bold">Price History</b>
+                <span className="text-xs font-medium text-muted-foreground">Every tracked item with its latest, lowest and highest price, and the full history</span>
               </span>
               <ChevronRight className="size-5 flex-none text-muted-foreground" />
             </Link>

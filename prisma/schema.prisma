@@ -143,6 +143,7 @@ model Household {
   activity       Activity[]
   servicePlans   ServicePlan[]
   serviceRecords ServiceRecord[]
+  priceSources   PriceSource[]
 }
 
 model Membership {
@@ -369,12 +370,60 @@ model Fixture {
   tags           Tag[]
   servicePlans   ServicePlan[]
   serviceRecords ServiceRecord[]
+  priceSources   PriceSource[]
 
   @@index([householdId])
   @@index([spaceId])
   @@index([parentId])
   @@index([warrantyExpiresAt])
   @@index([docSetId])
+}
+
+/// A shop's page for an item, checked about once a week for its current price (lib/prices.ts).
+/// Its history is the PriceCheck rows, one each time the price changed; the lowest and highest
+/// recorded prices come from those rows, so deleting a bad reading corrects them.
+model PriceSource {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  fixtureId   String
+  fixture     Fixture   @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+
+  url      String
+  label    String? // "JB Hi-Fi"; the site's name when blank
+  selector String? // a CSS selector for the price, for sites the automatic reading can't find it on
+
+  /// the price at the last good check, and when that was (the history only gains a row when it changes)
+  lastPrice     Decimal?  @db.Decimal(12, 2)
+  lastOkAt      DateTime?
+  lastCheckedAt DateTime?
+  /// why the last check failed, for Settings › Price Checks; cleared by a good check
+  lastError     String?
+  failingSince  DateTime?
+  /// a reading far from the last one, kept until the next check confirms it (a sale, or the wrong number read)
+  pendingPrice  Decimal?  @db.Decimal(12, 2)
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  checks PriceCheck[]
+
+  @@index([householdId])
+  @@index([fixtureId])
+  @@index([lastCheckedAt])
+}
+
+model PriceCheck {
+  id        String      @id @default(cuid())
+  sourceId  String
+  source    PriceSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  price     Decimal     @db.Decimal(12, 2)
+  currency  String      @default("AUD")
+  inStock   Boolean?
+  checkedAt DateTime    @default(now())
+
+  @@index([sourceId, checkedAt])
 }
 
 enum Surface {

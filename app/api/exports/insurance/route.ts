@@ -2,6 +2,8 @@ import { requireHousehold } from "@/lib/dal"
 import { insuranceReport, type InsuranceLine, type InsuranceReport } from "@/lib/insurance"
 import { hasStored, readStored } from "@/lib/storage"
 import { zipStream } from "@/lib/zip"
+import { priceReport } from "@/lib/prices"
+import { priceSummaryCsv } from "@/lib/price-csv"
 
 /**
  * The insurance pack as a ZIP: the inventory as a spreadsheet (CSV), each item's photo, and its receipts,
@@ -9,7 +11,7 @@ import { zipStream } from "@/lib/zip"
  */
 export async function GET() {
   const c = await requireHousehold()
-  const report = await insuranceReport(c.householdId, c.property.id)
+  const [report, prices] = await Promise.all([insuranceReport(c.householdId, c.property.id), priceReport(c.householdId, c.property.id)])
   const today = new Date().toLocaleDateString("en-CA", { timeZone: process.env.TZ || undefined }) // 2026-11-17
   const root = safe(`Insurance - ${report.property || "Home"} - ${today}`)
 
@@ -19,6 +21,8 @@ export async function GET() {
   const plan = packPlan(report, root, present)
   async function* files() {
     yield { name: `${root}/Insurance report.csv`, data: Buffer.from("﻿" + csv(report, plan.names), "utf8") }
+    // the shops' prices, kept apart from the household's own values
+    if (prices.items) yield { name: `${root}/Recorded retail prices.csv`, data: Buffer.from(priceSummaryCsv(prices), "utf8") }
     for (const f of plan.files) {
       let data: Buffer | null = null
       try {

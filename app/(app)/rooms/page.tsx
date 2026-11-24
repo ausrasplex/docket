@@ -10,6 +10,7 @@ import { requireHousehold } from "@/lib/dal"
 import { atLeast } from "@/lib/roles"
 import { RoomsList } from "./rooms-list"
 import { roomPhotoSrc } from "@/components/rooms/room-tile"
+import { surfaceLabel } from "@/lib/finishes"
 
 export default function RoomsPage({ searchParams }: PageProps<"/rooms">) {
   return (
@@ -42,7 +43,7 @@ async function Rooms({ searchParams }: { searchParams: PageProps<"/rooms">["sear
     include: {
       _count: { select: { fixtures: { where: { archivedAt: null, parentId: null } }, finishes: { where: { archivedAt: null } } } },
       cover: { select: { id: true, archivedAt: true } },
-      finishes: { where: { archivedAt: null, hex: { not: null } }, select: { hex: true }, take: 3 },
+      finishes: { where: { archivedAt: null, hex: { not: null } }, select: { hex: true, surface: true, surfaceNote: true, colourName: true, brand: { select: { name: true } } }, orderBy: { createdAt: "asc" }, take: 24 },
     },
   })
   if (!spaces.length) {
@@ -65,7 +66,11 @@ async function Rooms({ searchParams }: { searchParams: PageProps<"/rooms">["sear
         parentId: s.parentId,
         fixtures: s._count.fixtures,
         finishes: s._count.finishes,
-        swatches: s.finishes.map((f) => f.hex!),
+        swatches: s.finishes.map((f) => ({
+          hex: f.hex!,
+          surface: f.surfaceNote ? `${surfaceLabel(f.surface)} (${f.surfaceNote})` : surfaceLabel(f.surface),
+          name: [f.brand?.name, f.colourName].filter(Boolean).join(" ") || null,
+        })),
         photo: roomPhotoSrc(s),
       }))}
     />

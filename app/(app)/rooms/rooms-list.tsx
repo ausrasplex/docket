@@ -9,6 +9,7 @@ import { RoomTile } from "@/components/rooms/room-tile"
 import { plural } from "@/lib/format"
 import type { SpaceKind } from "@/generated/prisma/enums"
 import { SpaceDrawer, type SpaceDraft } from "./space-drawer"
+import { SwatchGroup, type SwatchColour } from "@/components/finishes/swatch-group"
 
 export type RoomCard = {
   id: string
@@ -18,7 +19,7 @@ export type RoomCard = {
   parentId: string | null
   fixtures: number
   finishes: number
-  swatches: string[]
+  swatches: SwatchColour[]
   photo: string | null
 }
 
@@ -71,13 +72,7 @@ export function RoomsList({ rooms, canEdit, openAdd }: { rooms: RoomCard[]; canE
                       {r.fixtures || r.finishes ? `${plural(r.fixtures, "fixture")} · ${plural(r.finishes, "finish", "finishes")}` : "Nothing added yet"}
                     </span>
                   </span>
-                  {r.swatches.length ? (
-                    <span className="flex -space-x-1.5" aria-hidden="true">
-                      {r.swatches.slice(0, 3).map((c, i) => (
-                        <span key={i} className="size-5 rounded-full border-2 border-surface" style={{ background: c }} />
-                      ))}
-                    </span>
-                  ) : null}
+                  <SwatchGroup colours={r.swatches} />
                   <ChevronRight className="cardarrow size-5 text-muted-foreground" />
                 </Link>
               )

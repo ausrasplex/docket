@@ -19,6 +19,8 @@ import { CategoryTile, itemPhotoSrc } from "@/components/fixtures/category-tile"
 import { CoverPhotoButton, type CoverTarget } from "@/components/covers/cover-photo"
 import { activeCoverId } from "@/components/covers/cover-src"
 import { BrandCard } from "./brand-card"
+import { PricesCard } from "./prices-card"
+import { itemPrices, priceSettings } from "@/lib/prices"
 import { PartsList } from "./parts-list"
 import { DocGroups, type DocGroup } from "@/components/documents/doc-groups"
 import { DocSearchBox } from "@/components/documents/doc-search"
@@ -119,7 +121,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
   // a part's page is its item's page
   if (f.parent) redirect(`/fixtures/${f.parent.id}#part-${f.id}`)
 
-  const [others, rooms, brands, inbox, plans, records, contacts] = await Promise.all([
+  const [others, rooms, brands, inbox, plans, records, contacts, prices] = await Promise.all([
     // items this one can share documents with (Share Documents in its menu)
     db.fixture.findMany({
       where: { householdId: c.householdId, parentId: null, id: { not: f.id }, OR: [{ archivedAt: null }, ...(f.docSetId ? [{ docSetId: f.docSetId }] : [])] },
@@ -149,6 +151,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
       },
     }),
     loadContacts(c.householdId),
+    itemPrices(f.id),
   ])
   // when each routine is next due: from the latest service that covered it, an estimate for km intervals
   // (from how far it's driven), and any booking
@@ -384,6 +387,8 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
             </Card>
           </div>
         </div>
+
+        <PricesCard fixtureId={f.id} itemName={f.name} sources={prices} canEdit={canEdit} everyDays={priceSettings().days} />
 
         <Card>
           <CardHeader>
