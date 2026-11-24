@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
-import { BrandField, Chip, Chips, Section } from "@/components/form-bits"
+import { BrandField, Chip, Chips, Section, StoreField } from "@/components/form-bits"
 import { CATEGORIES } from "@/lib/fixtures"
-import { createFixture, updateFixture, type FixtureInput } from "./actions"
+import { createFixture, updateFixture, type FirstService, type FixtureInput } from "./actions"
 
 const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
 
@@ -62,19 +62,27 @@ export function FixtureDrawer({
 }) {
   const router = useRouter()
   const [v, setV] = useState(initial)
+  const blankService: FirstService = { everyMonths: "12", everyKm: "", lastDate: null, lastKm: "" }
+  const [svc, setSvc] = useState<FirstService>(blankService)
   const [pending, start] = useTransition()
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
     setWasOpen(open)
-    if (open) setV(initial)
+    if (open) {
+      setV(initial)
+      setSvc(blankService)
+    }
   }
+  const setService = <K extends keyof FirstService>(k: K, val: FirstService[K]) => setSvc((p) => ({ ...p, [k]: val }))
   const set = <K extends keyof FixtureInput>(k: K, val: FixtureInput[K]) => setV((p) => ({ ...p, [k]: val }))
   const isPart = !!parent
   const what = isPart ? "Part" : "Item"
 
   const save = () =>
     start(async () => {
-      const r = editingId ? await updateFixture(editingId, v) : await createFixture(v, parent?.id ?? null)
+      // a new vehicle starts with its servicing
+      const firstService = !editingId && !parent && v.category === "VEHICLE" ? svc : undefined
+      const r = editingId ? await updateFixture(editingId, v) : await createFixture(v, parent?.id ?? null, firstService)
       if (!r.ok) return void toast.error(r.error)
       toast(editingId ? "Saved" : `${v.name.trim()} added`)
       onOpenChange(false)
@@ -177,9 +185,7 @@ export function FixtureDrawer({
           <Input value={v.size} onChange={(e) => set("size", e.target.value)} placeholder="90mm cutout, 8kW" />
         </FieldLabel>
       </div>
-      <FieldLabel label="Where Bought" hint="The shop or supplier, for buying another to match.">
-        <Input value={v.store} onChange={(e) => set("store", e.target.value)} placeholder="Bunnings, Tradelink" />
-      </FieldLabel>
+      <StoreField value={v.store} onChange={(s) => set("store", s)} placeholder="Bunnings, Tradelink" />
 
       <Section title="Dates and Warranty" />
       <div className="grid grid-cols-2 gap-3">
@@ -218,6 +224,30 @@ export function FixtureDrawer({
           <FieldLabel label="Odometer (km)" hint="Updated automatically when you log a service with a reading.">
             <Input value={v.odometer} onChange={(e) => set("odometer", e.target.value)} inputMode="numeric" placeholder="84250" />
           </FieldLabel>
+          {editingId ? null : (
+            <>
+              <Section title="Servicing" hint="Usually every year or so many kilometres, whichever comes first. The logbook says which." />
+              <div className="grid grid-cols-2 gap-3">
+                <FieldLabel label="Every (Months)">
+                  <Input value={svc.everyMonths} onChange={(e) => setService("everyMonths", e.target.value)} inputMode="numeric" placeholder="12" />
+                </FieldLabel>
+                <FieldLabel label="Every (Km)">
+                  <Input value={svc.everyKm} onChange={(e) => setService("everyKm", e.target.value)} inputMode="numeric" placeholder="15000" />
+                </FieldLabel>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FieldLabel label="Last Serviced">
+                  <Input type="date" value={svc.lastDate ?? ""} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setService("lastDate", e.target.value || null)} />
+                </FieldLabel>
+                <FieldLabel label="At (Km)">
+                  <Input value={svc.lastKm} onChange={(e) => setService("lastKm", e.target.value)} inputMode="numeric" placeholder="Optional" />
+                </FieldLabel>
+              </div>
+              <p className="-mt-2 text-xs font-medium text-muted-foreground">
+                The next service counts down from the last one. Log each service as it&apos;s done and Docket also estimates when the kilometres will be reached.
+              </p>
+            </>
+          )}
         </>
       ) : null}
 

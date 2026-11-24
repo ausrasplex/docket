@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Archive, Camera, Check, FileUp, Gauge, Inbox, MoreHorizontal, Paperclip, Pencil, Plus, Trash2, Wrench, X } from "lucide-react"
+import { Archive, CalendarCheck, CalendarClock, CalendarX, Camera, Check, ChevronDown, FileUp, Gauge, History, Inbox, MoreHorizontal, Paperclip, Pencil, Trash2, Wrench, X } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
@@ -28,9 +28,25 @@ import { fileTo } from "@/app/(app)/documents/actions"
 import { DUE_TONE, formatKm, type Due } from "@/lib/service"
 import { date as fmtDate, money } from "@/lib/format"
 import { gstOf } from "@/lib/parse"
-import { archivePlan, deleteRecord, savePlan, saveRecord, type PlanInput, type RecordInput } from "../service-actions"
+import { archivePlan, bookService, cancelBooking, deleteRecord, savePlan, saveRecord, type PlanInput, type RecordInput } from "../service-actions"
 
-export type PlanRow = { id: string; name: string; everyMonths: number | null; everyKm: number | null; notes: string | null; interval: string; due: Due }
+export type PlanRow = {
+  id: string
+  name: string
+  everyMonths: number | null
+  everyKm: number | null
+  notes: string | null
+  interval: string
+  /** the chip: a booking, else whichever of the due date or estimate is sooner */
+  due: Due
+  /** "in 265 days · 12 Aug 2027 or at 95,000 km" */
+  firm: string | null
+  /** "in 200 days · 12 Jun 2027 (driving about 41 km a day)": when the km interval will probably be reached */
+  estimate: string | null
+  booked: { date: string; with: string | null; past: boolean } | null
+}
+/** A new service, started from "Serviced": today, earlier, or the booking that was due. */
+type NewRecord = { new: true; date: string | null; planIds: string[] }
 export type RecordRow = {
   id: string
   date: string // yyyy-mm-dd
@@ -73,7 +89,8 @@ export function ServiceCard({
   canEdit: boolean
 }) {
   const [plan, setPlan] = useState<PlanRow | "new" | null>(null)
-  const [record, setRecord] = useState<RecordRow | "new" | null>(null)
+  const [record, setRecord] = useState<RecordRow | NewRecord | null>(null)
+  const [booking, setBooking] = useState(false)
   const [deleting, setDeleting] = useState<RecordRow | null>(null)
   const [, start] = useTransition()
   const planName = (id: string) => plans.find((p) => p.id === id)?.name
@@ -94,6 +111,45 @@ export function ServiceCard({
                   <span className="text-[15px] font-bold">{p.name}</span>
                   <span className="text-xs font-medium text-muted-foreground">{p.interval}</span>
                   <span className={cn("self-start rounded-full px-2 py-0.5 text-xs font-semibold", DUE_TONE[p.due.tone])}>{p.due.text}</span>
+                  {p.booked && !p.booked.past ? (
+                    <span className="flex items-center gap-1.5 text-xs font-semibold">
+                      <CalendarCheck className="size-3.5 flex-none" />
+                      Booked {fmtDate(new Date(`${p.booked.date}T00:00:00Z`))}
+                      {p.booked.with ? <span className="font-medium text-muted-foreground">· {p.booked.with}</span> : null}
+                    </span>
+                  ) : null}
+                  {p.firm ? (
+                    <span className="text-xs font-medium">
+                      <span className="font-semibold">Next service:</span> <span className="text-muted-foreground">{p.firm}</span>
+                    </span>
+                  ) : null}
+                  {p.estimate ? (
+                    <span className="text-xs font-medium">
+                      <span className="font-semibold">Estimated:</span> <span className="text-muted-foreground">{p.estimate}</span>
+                    </span>
+                  ) : null}
+                  {p.booked?.past && canEdit ? (
+                    <span className="mt-1 flex flex-wrap gap-2">
+                      <Button size="xs" onClick={() => setRecord({ new: true, date: p.booked!.date, planIds: [p.id] })}>
+                        <Check />
+                        Yes, Log It
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() =>
+                          start(async () => {
+                            const r = await cancelBooking(p.id)
+                            if (!r.ok) toast.error(r.error)
+                            else toast("Booking cancelled")
+                          })
+                        }
+                      >
+                        <CalendarX />
+                        It Didn&apos;t Happen
+                      </Button>
+                    </span>
+                  ) : null}
                 </span>
                 {canEdit ? (
                   <DropdownMenu>
@@ -107,6 +163,20 @@ export function ServiceCard({
                         <Pencil />
                         Edit Routine
                       </DropdownMenuItem>
+                      {p.booked ? (
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            start(async () => {
+                              const r = await cancelBooking(p.id)
+                              if (!r.ok) toast.error(r.error)
+                              else toast("Booking cancelled")
+                            })
+                          }
+                        >
+                          <CalendarX />
+                          Cancel Booking
+                        </DropdownMenuItem>
+                      ) : null}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
@@ -201,10 +271,40 @@ export function ServiceCard({
 
       {canEdit ? (
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setRecord("new")}>
-            <Plus />
-            Log Service
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Wrench />
+                Serviced
+                <ChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              <DropdownMenuItem onSelect={() => setRecord({ new: true, date: today(), planIds: [] })}>
+                <Check />
+                <span className="flex flex-col">
+                  Serviced Today
+                  <span className="text-xs text-muted-foreground">Log it with today&apos;s date</span>
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setRecord({ new: true, date: null, planIds: [] })}>
+                <History />
+                <span className="flex flex-col">
+                  Serviced Earlier
+                  <span className="text-xs text-muted-foreground">Log a past service, on its date</span>
+                </span>
+              </DropdownMenuItem>
+              {plans.length ? (
+                <DropdownMenuItem onSelect={() => setBooking(true)}>
+                  <CalendarClock />
+                  <span className="flex flex-col">
+                    Book a Service
+                    <span className="text-xs text-muted-foreground">One coming up that&apos;s booked in</span>
+                  </span>
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" onClick={() => setPlan("new")}>
             <Wrench />
             Add Routine
@@ -213,6 +313,7 @@ export function ServiceCard({
       ) : null}
 
       <PlanDrawer fixtureId={fixtureId} plan={plan} onClose={() => setPlan(null)} />
+      <BookDrawer fixtureId={fixtureId} itemName={itemName} plans={plans} open={booking} onClose={() => setBooking(false)} />
       <RecordDrawer
         fixtureId={fixtureId}
         itemName={itemName}
@@ -335,7 +436,7 @@ function RecordDrawer({
   fixtureId: string
   itemName: string
   odometer: number | null
-  record: RecordRow | "new" | null
+  record: RecordRow | NewRecord | null
   plans: PlanRow[]
   contacts: ContactLite[]
   inbox: InboxDoc[]
@@ -354,8 +455,9 @@ function RecordDrawer({
     setFiles([])
     setFromInbox([])
     setShowInbox(false)
-    if (record === "new") {
-      setV(blank())
+    if (record && "new" in record) {
+      const first = plans.find((p) => p.id === record.planIds[0])
+      setV({ ...blank(), date: record.date, planIds: record.planIds, title: first?.name ?? "" })
       setIncGst(true)
     } else if (record) {
       setV({
@@ -383,12 +485,12 @@ function RecordDrawer({
     // the first routine picked also names the service, if it has no name yet
     setV((p) => ({ ...p, planIds: ids, title: !on && !p.title.trim() ? (plans.find((x) => x.id === id)?.name ?? p.title) : p.title }))
   }
-  const editing = record && record !== "new"
+  const editing = record && !("new" in record) ? record : null
   const hasCost = !!v.amount.trim()
 
   const save = () =>
     start(async () => {
-      const r = await saveRecord(fixtureId, editing ? record.id : null, v)
+      const r = await saveRecord(fixtureId, editing ? editing.id : null, v)
       if (!r.ok) return void toast.error(r.error)
       // receipts go on the cost
       if (r.expenseId && (files.length || fromInbox.length)) {
@@ -490,9 +592,9 @@ function RecordDrawer({
       {hasCost ? (
         <div className="flex flex-col gap-2">
           <span className="text-[13px] font-bold text-muted-foreground">Receipt</span>
-          {editing && record.receipts.length ? (
+          {editing && editing.receipts.length ? (
             <div className="flex flex-col">
-              {record.receipts.map((x) => (
+              {editing.receipts.map((x) => (
                 <DocumentRow key={x.linkId} doc={x.doc} />
               ))}
             </div>
@@ -553,6 +655,83 @@ function RecordDrawer({
 
       <FieldLabel label="Notes (optional)">
         <Textarea value={v.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Parts replaced, things to watch" />
+      </FieldLabel>
+    </Drawer>
+  )
+}
+
+/** Book a service: the day it's booked in for and where. It shows as the next date until it's logged. */
+function BookDrawer({ fixtureId, itemName, plans, open, onClose }: { fixtureId: string; itemName: string; plans: PlanRow[]; open: boolean; onClose: () => void }) {
+  const [date, setDate] = useState("")
+  const [withWho, setWithWho] = useState("")
+  const [picked, setPicked] = useState<string[]>([])
+  const [wasOpen, setWasOpen] = useState(false)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setDate("")
+      setWithWho("")
+      // the first routine with an interval (what a logbook service covers); more can be ticked
+      setPicked(plans.filter((p) => p.everyMonths || p.everyKm).map((p) => p.id).slice(0, 1))
+    }
+  }
+  const [pending, start] = useTransition()
+  return (
+    <Drawer
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title="Book a Service"
+      description={`A service for ${itemName} that's booked in. It shows as the next service, and on your calendar, until you log it.`}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            disabled={pending || !date || !picked.length}
+            onClick={() =>
+              start(async () => {
+                const r = await bookService(fixtureId, picked, date, withWho)
+                if (!r.ok) return void toast.error(r.error)
+                toast("Service booked")
+                onClose()
+              })
+            }
+          >
+            <CalendarCheck />
+            Book
+          </Button>
+        </>
+      }
+    >
+      <div role="group" aria-label="Routines" className="flex flex-col gap-2">
+        <span className="text-[13px] font-bold text-muted-foreground">For</span>
+        <div className="flex flex-wrap gap-2">
+          {plans.map((p) => {
+            const on = picked.includes(p.id)
+            return (
+              <button
+                key={p.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setPicked(on ? picked.filter((x) => x !== p.id) : [...picked, p.id])}
+                className={cn(
+                  "flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold",
+                  on ? "bg-primary text-primary-foreground" : "border border-outline bg-surface hover:bg-surface2"
+                )}
+              >
+                {on ? <Check className="size-4" /> : null}
+                {p.name}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <FieldLabel label="Booked For">
+        <Input type="date" value={date} min={today()} onChange={(e) => setDate(e.target.value)} className="w-48" />
+      </FieldLabel>
+      <FieldLabel label="Where or Who (optional)">
+        <Input value={withWho} onChange={(e) => setWithWho(e.target.value)} placeholder="Ultra Tune Hornsby" />
       </FieldLabel>
     </Drawer>
   )

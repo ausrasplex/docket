@@ -4,6 +4,7 @@ import { useState } from "react"
 import { cn } from "cn"
 import { Input } from "@/components/ui/input"
 import { FieldLabel } from "@/components/drawer"
+import { knownStores } from "@/app/(app)/store-actions"
 
 // Small form pieces shared by the drawers (Folio style: titled sections, chip choices, brand suggestions).
 
@@ -39,6 +40,54 @@ export function Chip({ on, onClick, children }: { on: boolean; onClick: () => vo
     >
       {children}
     </button>
+  )
+}
+
+/**
+ * Where it was bought: type a shop, and shops used before (on any item or paint) are offered underneath,
+ * like brands. They're fetched the first time the field is used.
+ */
+export function StoreField({ value, onChange, placeholder = "Bunnings" }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [focused, setFocused] = useState(false)
+  const [stores, setStores] = useState<string[] | null>(null)
+  const load = () => {
+    if (stores) return
+    setStores([])
+    knownStores()
+      .then(setStores)
+      .catch(() => setStores([]))
+  }
+  const q = value.trim().toLowerCase()
+  const matches = (stores ?? []).filter((s) => s.toLowerCase().includes(q) && s.toLowerCase() !== q).slice(0, 8)
+  return (
+    <FieldLabel label="Where Bought" hint="The shop or supplier, for buying another to match.">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => {
+          setFocused(true)
+          load()
+        }}
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {focused && matches.length ? (
+        <span className="flex flex-wrap gap-1.5">
+          {matches.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onChange(s)}
+              className="min-h-9 cursor-pointer rounded-full bg-t2 px-3 text-[13px] font-semibold hover:bg-a2"
+            >
+              {s}
+            </button>
+          ))}
+        </span>
+      ) : null}
+    </FieldLabel>
   )
 }
 

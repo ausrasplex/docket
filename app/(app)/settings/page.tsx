@@ -12,6 +12,7 @@ import { isServerAdmin } from "@/lib/households"
 import { Appearance } from "./appearance"
 import { BackupsCard } from "./backups"
 import { ServerCard } from "./server"
+import { CalendarCard } from "./calendar"
 import { Members } from "./members"
 import { HouseholdName, Profile } from "./profile"
 import { StorageCard } from "./storage"
@@ -32,7 +33,7 @@ export default function SettingsPage() {
 async function Settings() {
   const c = await requireHousehold()
   const admin = atLeast(c.role, "ADMIN")
-  const [members, invites, serverAdmin] = await Promise.all([
+  const [members, invites, serverAdmin, feed] = await Promise.all([
     db.membership.findMany({
       where: { householdId: c.householdId },
       include: { user: { select: { id: true, name: true, email: true } } },
@@ -46,6 +47,7 @@ async function Settings() {
         })
       : [],
     isServerAdmin(c.user.id),
+    db.calendarFeed.findUnique({ where: { userId: c.user.id }, select: { createdAt: true, lastUsedAt: true } }),
   ])
   const open = invites.filter((i) => i.uses < i.maxUses)
 
@@ -105,6 +107,7 @@ async function Settings() {
             <Profile name={c.user.name} email={c.user.email} />
           </CardContent>
         </Card>
+        <CalendarCard feed={feed ? { made: date(feed.createdAt), checked: feed.lastUsedAt?.toISOString() ?? null } : null} />
         <Card>
           <CardHeader>
             <CardTitle>Exports</CardTitle>

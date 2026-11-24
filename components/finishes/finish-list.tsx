@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import { Archive, Camera, Copy, ExternalLink, MoreHorizontal, Package, Pencil, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -74,12 +75,7 @@ export function FinishList({
     const meta = [surface, groupByColour ? null : [i.brand, i.colourCode].filter(Boolean).join(" "), i.kind !== "PAINT" && !groupByColour ? finishKindLabel(i.kind) : null, i.sheen || null].filter(Boolean).join(" · ")
     return (
       <li key={r.id} className="flex items-center gap-3 border-t border-line py-3 first:border-t-0">
-        <button
-          type="button"
-          disabled={!canEdit}
-          onClick={() => setDrawer({ mode: "edit", id: r.id })}
-          className="lift group flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left disabled:cursor-default"
-        >
+        <Link href={`/paint/${r.id}`} className="lift group flex min-w-0 flex-1 items-center gap-3 text-left">
           {groupByColour ? null : <Swatch hex={i.hex} />}
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-[15px] font-bold">{groupByColour ? r.room : colourTitle(i)}</span>
@@ -102,7 +98,7 @@ export function FinishList({
               </span>
             ) : null}
           </span>
-        </button>
+        </Link>
         {canEdit ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -166,7 +162,11 @@ export function FinishList({
                 <div className="flex items-center gap-3.5">
                   <Swatch hex={hex} size={56} />
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <h2 className="truncate">{colourTitle(first)}</h2>
+                    <h2 className="truncate">
+                      <Link href={`/paint/${g[0].id}`} className="hover:underline">
+                        {colourTitle(first)}
+                      </Link>
+                    </h2>
                     <span className="truncate text-[13px] font-medium text-muted-foreground">
                       {[first.brand, first.colourCode, first.product !== colourTitle(first) ? first.product : null, first.kind !== "PAINT" ? finishKindLabel(first.kind) : null].filter(Boolean).join(" · ")}
                     </span>

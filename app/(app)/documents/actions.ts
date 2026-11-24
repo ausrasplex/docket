@@ -149,7 +149,7 @@ export async function setFiling(id: string, wanted: Target[], label: string | nu
   refresh()
   revalidatePath("/fixtures", "layout")
   revalidatePath("/jobs", "layout")
-  revalidatePath("/paint")
+  revalidatePath("/paint", "layout")
   return { ok: true, added: add.length, removed: drop.length }
 }
 
@@ -197,7 +197,7 @@ export async function fileMany(ids: string[], target: Target): Promise<Result<{ 
   refresh()
   revalidatePath("/fixtures", "layout")
   revalidatePath("/jobs", "layout")
-  revalidatePath("/paint")
+  revalidatePath("/paint", "layout")
   return { ok: true, filed: docs.length }
 }
 
@@ -244,7 +244,7 @@ export async function deleteDocument(id: string): Promise<Result> {
   await logActivity(c, { action: "deleted", entityType: "Document", entityId: id, summary: `${c.user.name} deleted “${doc.title}”` })
   refresh()
   revalidatePath("/fixtures", "layout")
-  revalidatePath("/paint")
+  revalidatePath("/paint", "layout")
   revalidatePath("/jobs", "layout")
   return { ok: true }
 }

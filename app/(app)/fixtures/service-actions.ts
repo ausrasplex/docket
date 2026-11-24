@@ -66,6 +66,43 @@ export async function archivePlan(id: string): Promise<Result> {
   return { ok: true }
 }
 
+// ───────── Bookings ─────────
+
+/** Books routines in for a service on a day (today or later). It shows as the next date until it's logged. */
+export async function bookService(fixtureId: string, planIds: string[], date: string | null, withWho: string): Promise<Result> {
+  const c = await requireHousehold("MEMBER")
+  const item = await ownItem(c.householdId, fixtureId)
+  if (!item) return { ok: false, error: "That item no longer exists." }
+  const day = parseDay(date)
+  if (!day) return { ok: false, error: "Pick the day it's booked for." }
+  const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z")
+  if (day < today) return { ok: false, error: "A booking is for today or later. For a service already done, log it instead." }
+  const ids = [...new Set(planIds)]
+  if (!ids.length) return { ok: false, error: "Pick the routine it's for." }
+  const r = await db.servicePlan.updateMany({
+    where: { id: { in: ids }, fixtureId, householdId: c.householdId, archivedAt: null },
+    data: { bookedFor: day, bookedWith: withWho.trim() || null },
+  })
+  if (r.count !== ids.length) return { ok: false, error: "One of those routines no longer exists." }
+  await logActivity(c, {
+    action: "updated",
+    entityType: "Fixture",
+    entityId: fixtureId,
+    summary: `${c.user.name} booked ${item.name} in for a service on ${day.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`,
+  })
+  refresh()
+  return { ok: true }
+}
+
+/** Calls off a booking (it didn't happen, or it's been moved and will be booked again). */
+export async function cancelBooking(planId: string): Promise<Result> {
+  const c = await requireHousehold("MEMBER")
+  const r = await db.servicePlan.updateMany({ where: { id: planId, householdId: c.householdId }, data: { bookedFor: null, bookedWith: null } })
+  if (!r.count) return { ok: false, error: "That routine no longer exists." }
+  refresh()
+  return { ok: true }
+}
+
 // ───────── Service log ─────────
 
 export type RecordInput = {
@@ -145,6 +182,9 @@ export async function saveRecord(fixtureId: string, id: string | null, input: Re
     : await db.serviceRecord.create({
         data: { ...data, plans: { connect: planIds.map((p) => ({ id: p })) }, householdId: c.householdId, fixtureId, createdById: c.user.id },
       })
+
+  // logging a service of a routine settles its booking
+  if (planIds.length) await db.servicePlan.updateMany({ where: { id: { in: planIds }, fixtureId }, data: { bookedFor: null, bookedWith: null } })
 
   if (odometer != null && (item.odometer == null || odometer > item.odometer)) {
     await db.fixture.update({ where: { id: fixtureId }, data: { odometer } })

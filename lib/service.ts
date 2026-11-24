@@ -72,3 +72,104 @@ export const DUE_TONE: Record<DueTone, string> = {
 }
 
 export { km as formatKm }
+
+// ───────── Estimates and bookings ─────────
+// A km interval has no date of its own, so it's estimated: from how far the car is driven (odometer readings
+// across past services), or failing that, from the usual time between past services. A booked service, once
+// made, is the date that counts.
+
+export type Reading = { date: Date; odometer: number | null }
+export type Estimate = { date: Date; basis: "distance" | "history"; perDay: number | null; everyDays: number | null }
+export type Outlook = {
+  /** the firm due date and km, from the interval (unchanged from serviceDue) */
+  due: Due
+  /** when the km interval will probably be reached; only when it's sooner than the firm date (or there isn't one) */
+  estimate: Estimate | null
+  booked: { date: Date; with: string | null; past: boolean } | null
+  /** what to show on the routine's chip and in Coming Up: the booking, else whichever of due or estimate is sooner */
+  status: Due
+  /** the one date for calendars: booked, else the sooner of due and estimate */
+  next: { date: Date; kind: "booked" | "due" | "estimate" } | null
+}
+
+const DAY_MS = 86_400_000
+const addDays = (d: Date, n: number) => new Date(d.getTime() + Math.round(n) * DAY_MS)
+const daysUntil = (d: Date, now: Date) => Math.ceil((d.getTime() - now.getTime()) / DAY_MS)
+const inDays = (n: number) => (n === 0 ? "today" : n === 1 ? "tomorrow" : n < 0 ? `${-n} day${n === -1 ? "" : "s"} ago` : `in ${n} days`)
+
+/** Kilometres driven a day, from the first and last odometer readings (at least a month apart). */
+export function kmPerDay(readings: Reading[]) {
+  const r = readings.filter((x) => x.odometer != null).sort((a, b) => a.date.getTime() - b.date.getTime())
+  if (r.length < 2) return null
+  const first = r[0], last = r[r.length - 1]
+  const days = (last.date.getTime() - first.date.getTime()) / DAY_MS
+  const km = last.odometer! - first.odometer!
+  if (days < 30 || km <= 0) return null
+  return km / days
+}
+
+/** The usual number of days between services of this routine (needs two or more). */
+export function usualGap(dates: Date[]) {
+  const d = [...dates].sort((a, b) => a.getTime() - b.getTime())
+  if (d.length < 2) return null
+  const gaps = d.slice(1).map((x, i) => (x.getTime() - d[i].getTime()) / DAY_MS).filter((g) => g > 0)
+  return gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : null
+}
+
+export function serviceOutlook(
+  plan: { everyMonths: number | null; everyKm: number | null; bookedFor: Date | null; bookedWith: string | null },
+  /** services of this routine, newest first */
+  done: Reading[],
+  /** every odometer reading for the item (its services of any kind), for how far it's driven */
+  readings: Reading[],
+  currentKm: number | null,
+  now = new Date(),
+): Outlook {
+  const last = done[0] ?? null
+  const due = serviceDue(plan, last, currentKm, now)
+
+  // the km interval as a date
+  let estimate: Estimate | null = null
+  if (plan.everyKm && last) {
+    const perDay = kmPerDay(readings)
+    const latest = readings.filter((x) => x.odometer != null).sort((a, b) => b.date.getTime() - a.date.getTime())[0]
+    if (perDay && due.dueKm != null && latest) {
+      estimate = { date: addDays(latest.date, (due.dueKm - latest.odometer!) / perDay), basis: "distance", perDay, everyDays: null }
+    } else {
+      const gap = usualGap(done.map((x) => x.date))
+      if (gap) estimate = { date: addDays(last.date, gap), basis: "history", perDay: null, everyDays: gap }
+    }
+    if (estimate && due.dueDate && estimate.date >= due.dueDate) estimate = null // the firm date comes first anyway
+  }
+
+  const booked = plan.bookedFor ? { date: plan.bookedFor, with: plan.bookedWith, past: daysUntil(plan.bookedFor, now) < 0 } : null
+
+  let status = due
+  if (booked) {
+    const n = daysUntil(booked.date, now)
+    status = {
+      tone: n <= SOON_DAYS ? "soon" : "ok",
+      text: booked.past ? `Booked for ${day(booked.date)} · was it done?` : `Booked ${n === 0 ? "for today" : n === 1 ? "for tomorrow" : `in ${n} days`}`,
+      dueDate: booked.date,
+      dueKm: due.dueKm,
+    }
+  } else if (estimate && due.tone !== "overdue") {
+    const n = daysUntil(estimate.date, now)
+    if (n <= SOON_DAYS) status = { tone: "soon", text: n <= 0 ? "Probably due now" : `Probably due ${inDays(n)}`, dueDate: estimate.date, dueKm: due.dueKm }
+  }
+
+  const firm = due.dueDate
+  const next = booked
+    ? { date: booked.date, kind: "booked" as const }
+    : estimate && (!firm || estimate.date < firm)
+      ? { date: estimate.date, kind: "estimate" as const }
+      : firm
+        ? { date: firm, kind: "due" as const }
+        : null
+  return { due, estimate, booked, status, next }
+}
+
+/** "in 265 days · 12 Aug 2027", for the routine's lines. */
+export function whenText(d: Date, now = new Date()) {
+  return `${inDays(daysUntil(d, now))} · ${day(d)}`
+}

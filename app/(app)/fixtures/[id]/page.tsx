@@ -13,7 +13,7 @@ import { date, money } from "@/lib/format"
 import { atLeast } from "@/lib/roles"
 import { FixtureMenu } from "./fixture-menu"
 import { ServiceCard, type PlanRow, type RecordRow } from "./service-card"
-import { DUE_TONE, formatKm, intervalText, regoDue, serviceDue } from "@/lib/service"
+import { DUE_TONE, formatKm, intervalText, regoDue, serviceOutlook, whenText } from "@/lib/service"
 import { contactLite, loadContacts } from "@/lib/job-rows"
 import { CategoryTile, itemPhotoSrc } from "@/components/fixtures/category-tile"
 import { CoverPhotoButton, type CoverTarget } from "@/components/covers/cover-photo"
@@ -150,10 +150,26 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
     }),
     loadContacts(c.householdId),
   ])
-  // when each routine is next due, from the latest service that covered it
+  // when each routine is next due: from the latest service that covered it, an estimate for km intervals
+  // (from how far it's driven), and any booking
+  const readings = records.map((r) => ({ date: r.date, odometer: r.odometer }))
   const planRows: PlanRow[] = plans.map((p) => {
-    const last = records.find((r) => r.plans.some((x) => x.id === p.id)) ?? null
-    return { id: p.id, name: p.name, everyMonths: p.everyMonths, everyKm: p.everyKm, notes: p.notes, interval: intervalText(p), due: serviceDue(p, last, f.odometer) }
+    const done = records.filter((r) => r.plans.some((x) => x.id === p.id)).map((r) => ({ date: r.date, odometer: r.odometer }))
+    const o = serviceOutlook(p, done, readings, f.odometer)
+    return {
+      id: p.id,
+      name: p.name,
+      everyMonths: p.everyMonths,
+      everyKm: p.everyKm,
+      notes: p.notes,
+      interval: intervalText(p),
+      due: o.status,
+      firm: o.due.dueDate || o.due.dueKm != null ? [o.due.dueDate ? whenText(o.due.dueDate) : null, o.due.dueKm != null ? `at ${formatKm(o.due.dueKm)}` : null].filter(Boolean).join(" or ") : null,
+      estimate: o.estimate
+        ? `${whenText(o.estimate.date)} (${o.estimate.perDay ? `driving about ${Math.round(o.estimate.perDay)} km a day` : `usually every ${Math.round(o.estimate.everyDays! / 30.4)} months`})`
+        : null,
+      booked: o.booked ? { date: o.booked.date.toISOString().slice(0, 10), with: o.booked.with, past: o.booked.past } : null,
+    }
   })
   const recordRows: RecordRow[] = records.map((r) => ({
     id: r.id,

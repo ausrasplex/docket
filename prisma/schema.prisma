@@ -51,8 +51,20 @@ model User {
   invitesCreated Invite[]     @relation("InviteCreatedBy")
   invitesUsed    InviteUse[]
   activity       Activity[]
+  calendarFeed   CalendarFeed?
 
   @@map("user")
+}
+
+/// A private calendar address (iCalendar) for one person: services due, bookings, warranties and rego across
+/// the households they belong to. Only a hash of its secret is kept; resetting it makes a new address.
+model CalendarFeed {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime? // when a calendar app last fetched it
 }
 
 // Better Auth tables (session, account, verification): field names follow Better Auth's schema.
@@ -468,6 +480,8 @@ model ServicePlan {
   everyMonths Int?
   everyKm     Int?
   notes       String?
+  bookedFor   DateTime? @db.Date // a service booked in for this date (cleared when one is logged)
+  bookedWith  String? // where or who: "Ultra Tune Hornsby"
   archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

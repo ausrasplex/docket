@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server"
 import { getSessionCookie } from "better-auth/cookies"
 
 // Pages anyone can open. Everything else needs a session cookie.
-const PUBLIC = ["/signin", "/signup", "/invite/", "/reset/", "/api/auth/", "/api/health"]
+// The calendar feed is fetched by calendar apps, without a session: the secret in its address is the key.
+const PUBLIC = ["/signin", "/signup", "/invite/", "/reset/", "/api/auth/", "/api/health", "/api/calendar/"]
 
 /**
  * Fast, optimistic check: no session cookie → sign in. The real check (is the session valid,

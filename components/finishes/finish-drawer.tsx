@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
-import { BrandField, Chip, Chips, Section } from "@/components/form-bits"
+import { BrandField, Chip, Chips, Section, StoreField } from "@/components/form-bits"
 import { DocumentRow } from "@/components/documents/document-row"
 import { DocMenu } from "@/components/documents/doc-menu"
 import { FINISH_KINDS, SHEENS, SURFACES, normaliseHex } from "@/lib/finishes"
@@ -147,14 +147,10 @@ export function FinishDrawer({
           ))}
         </Chips>
       ) : null}
-      <div className="grid grid-cols-2 gap-3">
-        <FieldLabel label="Size">
-          <Input value={v.size} onChange={(e) => set("size", e.target.value)} placeholder={isPaint ? "4 L" : "1200 x 600mm"} />
-        </FieldLabel>
-        <FieldLabel label="Where Bought">
-          <Input value={v.store} onChange={(e) => set("store", e.target.value)} placeholder={isPaint ? "Bunnings" : "National Tiles"} />
-        </FieldLabel>
-      </div>
+      <FieldLabel label="Size">
+        <Input value={v.size} onChange={(e) => set("size", e.target.value)} placeholder={isPaint ? "4 L" : "1200 x 600mm"} className="w-48" />
+      </FieldLabel>
+      <StoreField value={v.store} onChange={(s) => set("store", s)} placeholder={isPaint ? "Bunnings" : "National Tiles"} />
       <FieldLabel label="Colour's Web Page (optional)">
         <Input value={v.productUrl} onChange={(e) => set("productUrl", e.target.value)} placeholder="dulux.com.au/colour/…" inputMode="url" />
       </FieldLabel>

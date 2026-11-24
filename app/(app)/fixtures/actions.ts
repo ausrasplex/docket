@@ -107,11 +107,33 @@ function data(input: FixtureInput) {
   }
 }
 
-/** Adds an item, or a part of one when parentId is given (a part defaults to its item's room). */
-export async function createFixture(input: FixtureInput, parentId: string | null = null): Promise<Result<{ id: string }>> {
+/** A new vehicle's servicing, from the Add Item form: its interval, and its last service if known. */
+export type FirstService = { everyMonths: string; everyKm: string; lastDate: string | null; lastKm: string }
+
+/** "12" → 12; blank → null; anything else → undefined. */
+const count = (v: string, max: number) => {
+  const s = v.trim()
+  if (!s) return null
+  return /^\d+$/.test(s) && Number(s) >= 1 && Number(s) <= max ? Number(s) : undefined
+}
+
+/**
+ * Adds an item, or a part of one when parentId is given (a part defaults to its item's room). A vehicle can
+ * start with its service interval (a "Logbook service" routine) and its last service, so the countdown to the
+ * next one starts straight away.
+ */
+export async function createFixture(input: FixtureInput, parentId: string | null = null, service?: FirstService): Promise<Result<{ id: string }>> {
   const c = await requireHousehold("MEMBER")
   const bad = await check(c, input)
   if (bad) return { ok: false, error: bad }
+  const everyMonths = service ? count(service.everyMonths, 240) : null
+  const everyKm = service ? km(service.everyKm) : null
+  const lastDate = service ? day(service.lastDate) : null
+  const lastKm = service ? km(service.lastKm) : null
+  if (everyMonths === undefined) return { ok: false, error: "Service every so many months is a whole number, like 12." }
+  if (everyKm === undefined || lastKm === undefined) return { ok: false, error: "Kilometres are a number, like 15000." }
+  if (lastDate && lastDate > new Date()) return { ok: false, error: "The last service is a date that's passed. Book future ones from the item's page." }
+  if ((lastDate || lastKm) && !everyMonths && !everyKm) return { ok: false, error: "Say how often it's serviced, so the last service has something to count from." }
   let parent = null
   if (parentId) {
     parent = await db.fixture.findFirst({ where: { id: parentId, householdId: c.householdId, parentId: null } })
@@ -130,6 +152,15 @@ export async function createFixture(input: FixtureInput, parentId: string | null
       createdById: c.user.id,
     },
   })
+  if (!parent && (everyMonths || everyKm)) {
+    const plan = await db.servicePlan.create({ data: { householdId: c.householdId, fixtureId: f.id, name: "Logbook service", everyMonths, everyKm } })
+    if (lastDate) {
+      await db.serviceRecord.create({
+        data: { householdId: c.householdId, fixtureId: f.id, date: lastDate, odometer: lastKm, title: "Logbook service", plans: { connect: [{ id: plan.id }] }, createdById: c.user.id },
+      })
+    }
+    if (lastKm != null && (f.odometer == null || lastKm > f.odometer)) await db.fixture.update({ where: { id: f.id }, data: { odometer: lastKm } })
+  }
   await logActivity(c, {
     action: "created",
     entityType: "Fixture",

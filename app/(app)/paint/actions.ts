@@ -28,7 +28,7 @@ export type FinishInput = {
 }
 
 function refresh() {
-  revalidatePath("/paint")
+  revalidatePath("/paint", "layout")
   revalidatePath("/rooms", "layout")
   revalidatePath("/")
 }

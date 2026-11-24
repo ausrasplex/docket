@@ -72,6 +72,29 @@ export async function revokeHouseholdInvite(id: string): Promise<Result> {
   return { ok: true }
 }
 
+/**
+ * Makes (or replaces) your calendar link. Only a hash is kept, so this is the one time the address is shown;
+ * a new one stops the old one working.
+ */
+export async function makeCalendarLink(): Promise<Result<{ url: string }>> {
+  const user = await requireUser()
+  const token = newToken()
+  await db.calendarFeed.upsert({
+    where: { userId: user.id },
+    create: { userId: user.id, tokenHash: hashToken(token) },
+    update: { tokenHash: hashToken(token), createdAt: new Date(), lastUsedAt: null },
+  })
+  revalidatePath("/settings")
+  return { ok: true, url: `${await baseUrl()}/api/calendar/${token}.ics` }
+}
+
+export async function turnOffCalendarLink(): Promise<Result> {
+  const user = await requireUser()
+  await db.calendarFeed.deleteMany({ where: { userId: user.id } })
+  revalidatePath("/settings")
+  return { ok: true }
+}
+
 export async function revokeInvite(id: string): Promise<Result> {
   const c = await requireHousehold("ADMIN")
   await db.invite.updateMany({ where: { id, householdId: c.householdId, kind: "JOIN" }, data: { revokedAt: new Date() } })
