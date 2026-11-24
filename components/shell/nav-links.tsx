@@ -3,7 +3,9 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "cn"
-import { NAV, TABS_LEFT, TABS_RIGHT, isActive, type NavItem } from "./nav"
+import { Ellipsis } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { MORE, NAV, TABS_LEFT, TABS_RIGHT, isActive, type NavItem } from "./nav"
 import { AddMenu } from "./add-menu"
 
 // These read the URL to highlight the current page, so the shell renders them inside <Suspense>
@@ -54,7 +56,42 @@ function TabList({ pathname }: { pathname: string | null }) {
           <TabLink item={n} on={!!pathname && isActive(pathname, n.href)} />
         </li>
       ))}
+      <li className="flex-1">
+        <MoreMenu pathname={pathname} />
+      </li>
     </ul>
+  )
+}
+
+/** The last tab: opens upward with the pages that don't fit in the bar. Highlighted while on one of them. */
+function MoreMenu({ pathname }: { pathname: string | null }) {
+  const current = pathname ? MORE.find((n) => isActive(pathname, n.href)) : undefined
+  return (
+    <DropdownMenu modal>
+      <DropdownMenuTrigger
+        aria-label="More pages"
+        className={cn(
+          "flex min-h-15 w-full cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md px-0.5 py-1.5 text-[11px] font-semibold outline-none",
+          current ? "bg-nav-on text-ink" : "text-muted-foreground data-[state=open]:text-ink"
+        )}
+      >
+        {current ? <current.icon className="size-5" /> : <Ellipsis className="size-5" />}
+        {current ? current.label : "More"}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="end" sideOffset={12} className="w-[min(240px,calc(100vw-32px))] rounded-3xl p-2 shadow-dialog">
+        {MORE.map((n) => {
+          const on = !!pathname && isActive(pathname, n.href)
+          return (
+            <DropdownMenuItem key={n.href} asChild className={cn("min-h-12 gap-3 rounded-xl px-3 text-sm font-semibold", on && "bg-nav-on")}>
+              <Link href={n.href} aria-current={on ? "page" : undefined}>
+                <n.icon className="size-5" />
+                {n.label}
+              </Link>
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

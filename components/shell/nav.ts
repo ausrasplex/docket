@@ -24,9 +24,10 @@ export const NAV: NavItem[] = [
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 
-// Phone tab bar: four tabs around the raised round Add in the middle
+// Phone tab bar: four tabs around the raised round Add in the middle, the last a More menu for the rest
 export const TABS_LEFT: NavItem[] = [NAV[0], NAV[1]]
-export const TABS_RIGHT: NavItem[] = [NAV[5], NAV[6]] // Documents, Settings
+export const TABS_RIGHT: NavItem[] = [NAV[5]] // Documents
+export const MORE: NavItem[] = [NAV[2], NAV[3], NAV[4], NAV[6]] // Fixtures, Paint, Jobs, Settings
 
 export type AddItem = { href: string; label: string; detail: string; icon: LucideIcon; tone: "a1" | "a2" | "a3" }
 
