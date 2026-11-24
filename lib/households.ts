@@ -53,6 +53,16 @@ export async function startPlace(tx: Prisma.TransactionClient, user: { id: strin
   return id
 }
 
+/**
+ * Whether someone with no household may start one on the setup screen: only the first account on a fresh
+ * server (no households yet) and server admins. Everyone else needs an invite link, to join a household or
+ * to start their own, so an account removed from its household can't quietly start another.
+ */
+export async function mayStartHousehold(userId: string) {
+  if ((await db.household.count()) === 0) return true
+  return isServerAdmin(userId)
+}
+
 /** Server admins run the Docket server: they can invite people to start households and see storage totals. */
 export async function isServerAdmin(userId: string) {
   return !!(await db.user.findUnique({ where: { id: userId }, select: { serverAdmin: true } }))?.serverAdmin
