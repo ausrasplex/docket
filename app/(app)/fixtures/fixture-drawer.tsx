@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
+import { money } from "@/lib/format"
 import { BrandField, Chip, Chips, Section, StoreField } from "@/components/form-bits"
 import { CATEGORIES } from "@/lib/fixtures"
 import { createFixture, updateFixture, type FirstService, type FixtureInput } from "./actions"
@@ -33,6 +34,7 @@ export const BLANK_FIXTURE: FixtureInput = {
   replacementValue: "",
   includedInSale: true,
   serviceEnabled: true,
+  replacementFromPrices: false,
   notes: "",
   registration: "",
   vin: "",
@@ -52,6 +54,7 @@ export function FixtureDrawer({
   parent,
   rooms,
   brands,
+  tracked = null,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
@@ -60,6 +63,8 @@ export function FixtureDrawer({
   parent?: { id: string; name: string }
   rooms: { id: string; name: string }[]
   brands: string[]
+  /** the cheapest current price at the item's tracked shops, offered as its Replacement Cost */
+  tracked?: number | null
 }) {
   const router = useRouter()
   const [v, setV] = useState(initial)
@@ -258,21 +263,48 @@ export function FixtureDrawer({
           <Input value={v.purchasePrice} onChange={(e) => set("purchasePrice", e.target.value)} inputMode="decimal" placeholder="$" />
         </FieldLabel>
         <FieldLabel label="Replacement Cost">
-          <Input value={v.replacementValue} onChange={(e) => set("replacementValue", e.target.value)} inputMode="decimal" placeholder="$" />
+          <Input
+            value={v.replacementFromPrices && tracked != null ? tracked.toFixed(2) : v.replacementValue}
+            onChange={(e) => set("replacementValue", e.target.value)}
+            disabled={v.replacementFromPrices && tracked != null}
+            inputMode="decimal"
+            placeholder="$"
+          />
         </FieldLabel>
       </div>
-      <label className="flex min-h-15 cursor-pointer items-center gap-3 rounded-xl bg-surface2 px-3.5 py-2.5">
-        <input type="checkbox" checked={v.includedInSale} onChange={(e) => set("includedInSale", e.target.checked)} className="size-5 accent-[var(--sel)]" />
-        <span className="flex flex-col">
+      {tracked != null || v.replacementFromPrices ? (
+        <label className="flex min-h-15 shrink-0 cursor-pointer items-center gap-3 rounded-xl bg-surface2 px-3.5 py-3">
+          <input
+            type="checkbox"
+            checked={v.replacementFromPrices}
+            onChange={(e) => {
+              const on = e.target.checked
+              setV((p) => ({ ...p, replacementFromPrices: on, ...(on && tracked != null ? { replacementValue: tracked.toFixed(2) } : {}) }))
+            }}
+            className="size-5 flex-none accent-[var(--sel)]"
+          />
+          <span className="flex flex-col gap-0.5">
+            <b className="text-sm">Use the Tracked Shop Price</b>
+            <span className="text-xs text-muted-foreground">
+              {tracked != null
+                ? `Replacement Cost follows the cheapest current price at this item's shops (now ${money(tracked, true)}), updated after each check.`
+                : "No shop has a price at the moment, so the value above is kept until one does."}
+            </span>
+          </span>
+        </label>
+      ) : null}
+      <label className="flex min-h-15 shrink-0 cursor-pointer items-center gap-3 rounded-xl bg-surface2 px-3.5 py-3">
+        <input type="checkbox" checked={v.includedInSale} onChange={(e) => set("includedInSale", e.target.checked)} className="size-5 flex-none accent-[var(--sel)]" />
+        <span className="flex flex-col gap-0.5">
           <b className="text-sm">Stays With the House</b>
           <span className="text-xs text-muted-foreground">Fixed in place, so it&apos;s included if you sell. Untick for things you&apos;d take with you.</span>
         </span>
       </label>
 
       {!isPart ? (
-        <label className="flex min-h-15 cursor-pointer items-center gap-3 rounded-xl bg-surface2 px-3.5 py-2.5">
-          <input type="checkbox" checked={v.serviceEnabled} onChange={(e) => setV((p) => ({ ...p, serviceEnabled: e.target.checked }))} className="size-5 accent-[var(--sel)]" />
-          <span className="flex flex-col">
+        <label className="flex min-h-15 shrink-0 cursor-pointer items-center gap-3 rounded-xl bg-surface2 px-3.5 py-3">
+          <input type="checkbox" checked={v.serviceEnabled} onChange={(e) => setV((p) => ({ ...p, serviceEnabled: e.target.checked }))} className="size-5 flex-none accent-[var(--sel)]" />
+          <span className="flex flex-col gap-0.5">
             <b className="text-sm">Track Servicing</b>
             <span className="text-xs text-muted-foreground">Shows the Service section, for regular care like an annual service. Untick for things that never need it.</span>
           </span>

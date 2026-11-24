@@ -6,6 +6,7 @@ import { logActivity, requireHousehold } from "@/lib/dal"
 import { normaliseUrl } from "@/lib/documents"
 import type { FixtureCategory } from "@/generated/prisma/enums"
 import { CATEGORIES } from "@/lib/fixtures"
+import { syncReplacement } from "@/lib/prices"
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 
@@ -27,6 +28,8 @@ export type FixtureInput = {
   warrantyExpiresAt: string | null
   purchasePrice: string
   replacementValue: string
+  /** Replacement Cost follows the cheapest current price at its tracked shops */
+  replacementFromPrices: boolean
   includedInSale: boolean
   /** shows the Service section (items only) */
   serviceEnabled: boolean
@@ -100,6 +103,7 @@ function data(input: FixtureInput) {
     warrantyExpiresAt: day(input.warrantyExpiresAt),
     purchasePrice: money(input.purchasePrice) ?? null,
     replacementValue: money(input.replacementValue) ?? null,
+    replacementFromPrices: input.replacementFromPrices,
     includedInSale: input.includedInSale,
     serviceEnabled: input.serviceEnabled,
     notes: input.notes.trim() || null,
@@ -184,7 +188,9 @@ export async function updateFixture(id: string, input: FixtureInput): Promise<Re
     where: { id },
     data: { ...data(input), ...(f.parentId ? { portable: false } : {}), brandId: await brandId(c.householdId, input.brand), updatedById: c.user.id },
   })
+  await syncReplacement(id)
   refresh()
+  revalidatePath("/exports/insurance")
   return { ok: true }
 }
 

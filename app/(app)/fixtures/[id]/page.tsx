@@ -1,3 +1,4 @@
+import { CopyText } from "@/components/copy-text"
 import { Suspense } from "react"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
@@ -61,6 +62,7 @@ function toInput(f: {
   warrantyExpiresAt: Date | null
   purchasePrice: { toString(): string } | null
   replacementValue: { toString(): string } | null
+  replacementFromPrices: boolean
   includedInSale: boolean
   serviceEnabled: boolean
   notes: string | null
@@ -86,6 +88,7 @@ function toInput(f: {
     warrantyExpiresAt: iso(f.warrantyExpiresAt),
     purchasePrice: f.purchasePrice?.toString() ?? "",
     replacementValue: f.replacementValue?.toString() ?? "",
+    replacementFromPrices: f.replacementFromPrices,
     includedInSale: f.includedInSale,
     serviceEnabled: f.serviceEnabled,
     notes: f.notes ?? "",
@@ -192,6 +195,8 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
     receipts: r.expense?.links.map((l) => ({ linkId: l.id, doc: l.document })) ?? [],
   }))
   const isVehicle = f.category === "VEHICLE"
+  // the cheapest current shop price, offered as the Replacement Cost in Edit Item
+  const trackedNow = prices.reduce<number | null>((n, s) => (s.latest != null && (n == null || s.latest < n) ? s.latest : n), null)
   const rego = regoDue(f.registrationExpiresAt)
 
   const canEdit = atLeast(c.role, "MEMBER")
@@ -242,7 +247,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
         </Link>
         <h1 className="min-w-0 flex-1 truncate">{f.name}</h1>
         {canEdit ? (
-          <FixtureMenu id={f.id} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} photo={itemPhoto} photos={photosOf(f.links)} parts={f.parts.map((p) => ({ id: p.id, name: p.name }))} shareWith={shareWith} />
+          <FixtureMenu tracked={trackedNow} id={f.id} name={f.name} archived={!!f.archivedAt} initial={toInput(f)} rooms={rooms} brands={brandNames} photo={itemPhoto} photos={photosOf(f.links)} parts={f.parts.map((p) => ({ id: p.id, name: p.name }))} shareWith={shareWith} />
         ) : null}
       </PageTitle>
       <PageBody>
@@ -308,17 +313,17 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
               <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
                 {isVehicle ? (
                   <>
-                    <Row k="Registration" v={f.registration} mono />
+                    <Row k="Registration" v={f.registration} mono copy />
                     <dt className="font-semibold text-muted-foreground">Rego</dt>
                     <dd>
                       <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", DUE_TONE[rego.tone])}>{rego.text}</span>
                     </dd>
-                    <Row k="VIN" v={f.vin} mono />
+                    <Row k="VIN" v={f.vin} mono copy />
                     <Row k="Odometer" v={f.odometer != null ? formatKm(f.odometer) : null} />
                   </>
                 ) : null}
-                <Row k="Model" v={f.model} mono />
-                <Row k="Serial" v={f.serial} mono />
+                <Row k="Model" v={f.model} mono copy />
+                <Row k="Serial" v={f.serial} mono copy />
                 {f.colour ? <Row k="Colour / Finish" v={f.colour} /> : null}
                 {f.size ? <Row k="Size" v={f.size} /> : null}
                 {f.store ? <Row k="Where Bought" v={f.store} /> : null}
@@ -329,7 +334,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
                   <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", WARRANTY_TONE[w.tone])}>{w.text}</span>
                 </dd>
                 <Row k="Price Paid" v={f.purchasePrice ? money(f.purchasePrice, true) : null} />
-                <Row k="Replacement" v={f.replacementValue ? money(f.replacementValue, true) : null} />
+                <Row k="Replacement" v={f.replacementValue ? `${money(f.replacementValue, true)}${f.replacementFromPrices && trackedNow != null ? " (shop price)" : ""}` : null} />
                 <Row k="If You Sell" v={f.includedInSale ? "Stays with the house" : "Comes with you"} />
               </dl>
               {f.notes ? <p className="mt-4 rounded-2xl bg-surface2 px-4 py-3 text-sm whitespace-pre-line">{f.notes}</p> : null}
@@ -444,11 +449,14 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
   )
 }
 
-function Row({ k, v, mono }: { k: string; v: string | null | undefined; mono?: boolean }) {
+/** A detail row; `copy` makes the value copy itself when tapped (model, serial, rego, VIN). */
+function Row({ k, v, mono, copy }: { k: string; v: string | null | undefined; mono?: boolean; copy?: boolean }) {
   return (
     <>
       <dt className="font-semibold text-muted-foreground">{k}</dt>
-      <dd className={cn(v ? "" : "text-muted-foreground", mono && v ? "font-mono text-[13px] select-all" : "")}>{v || "—"}</dd>
+      <dd className={cn("min-w-0", v ? "" : "text-muted-foreground", mono && v ? "font-mono text-[13px]" : "")}>
+        {v && copy ? <CopyText value={v} label={k} /> : v || "—"}
+      </dd>
     </>
   )
 }

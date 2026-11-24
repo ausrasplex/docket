@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { logActivity, requireHousehold } from "@/lib/dal"
 import { normaliseUrl } from "@/lib/documents"
-import { checkSource, resyncSource, retryFailing, siteName } from "@/lib/prices"
+import { checkSource, resyncSource, retryFailing, siteName, syncReplacement } from "@/lib/prices"
 import { money } from "@/lib/format"
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
@@ -74,6 +74,7 @@ export async function deletePriceSource(id: string): Promise<Result> {
   const s = await source(c.householdId, id)
   if (!s) return { ok: true }
   await db.priceSource.delete({ where: { id } })
+  await syncReplacement(s.fixtureId)
   await logActivity(c, { action: "updated", entityType: "fixture", entityId: s.fixtureId, summary: `Stopped tracking the price of ${s.fixture.name} at ${s.label ?? siteName(s.url)}` })
   refresh(pageOf(s))
   return { ok: true }

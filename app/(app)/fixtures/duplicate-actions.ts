@@ -82,6 +82,7 @@ export async function duplicateFixture(id: string, copies: DuplicateCopy[]): Pro
     installerId: x.installerId,
     purchasePrice: x.purchasePrice,
     replacementValue: x.replacementValue,
+    replacementFromPrices: false, // the copy has no shops of its own
     includedInSale: x.includedInSale,
     serviceEnabled: x.serviceEnabled,
     notes: x.notes,

@@ -22,6 +22,7 @@ export function FixtureMenu({
   photos,
   parts,
   shareWith,
+  tracked = null,
 }: {
   id: string
   name: string
@@ -33,6 +34,8 @@ export function FixtureMenu({
   photos: CoverPhoto[]
   parts: { id: string; name: string }[]
   shareWith: ShareCandidate[]
+  /** the cheapest current tracked shop price, if any */
+  tracked?: number | null
 }) {
   const [edit, setEdit] = useState(false)
   const [duplicate, setDuplicate] = useState(false)
@@ -88,7 +91,7 @@ export function FixtureMenu({
       <CoverPhotoDrawer open={photoOpen} onOpenChange={setPhotoOpen} target={photo} photos={photos} />
       <DuplicateDialog open={duplicate} onOpenChange={setDuplicate} id={id} name={name} roomId={initial.spaceId} rooms={rooms} parts={parts} />
       <ShareDocsDialog open={share} onOpenChange={setShare} id={id} name={name} candidates={shareWith} />
-      <FixtureDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} rooms={rooms} brands={brands} />
+      <FixtureDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} rooms={rooms} brands={brands} tracked={tracked} />
       <FixtureDrawer
         open={addPart}
         onOpenChange={setAddPart}

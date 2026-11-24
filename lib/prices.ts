@@ -18,11 +18,23 @@ const JUMP_UP = 2.5
 
 const num = (d: { toString(): string } | null | undefined) => (d == null ? null : Number(d.toString()))
 
+/**
+ * For an item whose Replacement Cost follows its shops: sets it to the cheapest current price. Left alone when
+ * no shop has a price (a blocked page shouldn't blank the value).
+ */
+export async function syncReplacement(fixtureId: string) {
+  const f = await db.fixture.findUnique({ where: { id: fixtureId }, select: { replacementFromPrices: true, replacementValue: true } })
+  if (!f?.replacementFromPrices) return
+  const cheapest = await db.priceSource.aggregate({ where: { fixtureId, lastPrice: { not: null } }, _min: { lastPrice: true } })
+  const price = cheapest._min.lastPrice
+  if (price != null && price.toString() !== f.replacementValue?.toString()) await db.fixture.update({ where: { id: fixtureId }, data: { replacementValue: price } })
+}
+
 export type CheckOutcome = { ok: true; price: number; held: boolean; changed: boolean } | { ok: false; error: string }
 
 /** Checks one shop page now and records the result. Never throws. */
 export async function checkSource(id: string): Promise<CheckOutcome> {
-  const s = await db.priceSource.findUnique({ where: { id }, select: { id: true, url: true, selector: true, lastPrice: true, pendingPrice: true, failingSince: true } })
+  const s = await db.priceSource.findUnique({ where: { id }, select: { id: true, fixtureId: true, url: true, selector: true, lastPrice: true, pendingPrice: true, failingSince: true } })
   if (!s) return { ok: false, error: "That shop page no longer exists." }
   const now = new Date()
   const r = await fetchPrice(s.url, s.selector)
@@ -46,13 +58,15 @@ export async function checkSource(id: string): Promise<CheckOutcome> {
     ...(changed ? [db.priceCheck.create({ data: { sourceId: id, price, currency: r.reading.currency, inStock: r.reading.inStock, checkedAt: now } })] : []),
     db.priceSource.update({ where: { id }, data: { lastPrice: price, lastOkAt: now, lastCheckedAt: now, lastError: null, failingSince: null, pendingPrice: null } }),
   ])
+  await syncReplacement(s.fixtureId)
   return { ok: true, price, held: false, changed }
 }
 
 /** After a reading is deleted: the source's latest price follows the history that's left. */
 export async function resyncSource(id: string) {
   const latest = await db.priceCheck.findFirst({ where: { sourceId: id }, orderBy: { checkedAt: "desc" }, select: { price: true } })
-  await db.priceSource.update({ where: { id }, data: { lastPrice: latest?.price ?? null, ...(latest ? {} : { lastOkAt: null }), pendingPrice: null } })
+  const s = await db.priceSource.update({ where: { id }, data: { lastPrice: latest?.price ?? null, ...(latest ? {} : { lastOkAt: null }), pendingPrice: null }, select: { fixtureId: true } })
+  await syncReplacement(s.fixtureId)
 }
 
 /** Which pages are due: weekly, a held reading the next day, and a failing page daily for its first week. */
