@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Check, DoorOpen, Hammer, Lamp, Paintbrush, Search } from "lucide-react"
+import { Check, ChevronDown, DoorOpen, Hammer, Lamp, Paintbrush, Search } from "lucide-react"
 import { cn } from "cn"
 import type { Target } from "@/app/(app)/documents/actions"
 
@@ -9,9 +9,17 @@ export type TargetOption = { type: Target["type"]; id: string; name: string; det
 
 const same = (a: Target, b: Target) => a.type === b.type && a.id === b.id
 
+const GROUPS = [
+  { type: "fixture", title: "Items", icon: Lamp },
+  { type: "space", title: "Rooms", icon: DoorOpen },
+  { type: "job", title: "Jobs", icon: Hammer },
+  { type: "finish", title: "Paint and Finishes", icon: Paintbrush },
+] as const
+
 /**
- * Items (with their parts) first, then rooms, jobs and finishes. A search box appears once the list gets long.
- * Picks one place, or with `multiple` ticks several; `pinned` places (where it's filed already) are listed first.
+ * Items (with their parts), rooms, jobs and finishes, each as a dropdown that opens in place (one at a time)
+ * and shows what's ticked when closed. A search box appears once the list gets long; searching opens every
+ * group with a match. Picks one place, or with `multiple` ticks several; `pinned` places are listed first.
  */
 export function TargetPicker({
   options,
@@ -29,21 +37,24 @@ export function TargetPicker({
   label?: string
 }) {
   const [q, setQ] = useState("")
+  const [open, setOpen] = useState<string | null>(null)
   const needle = q.trim().toLowerCase()
   const matched = needle ? options.filter((o) => `${o.name} ${o.detail ?? ""}`.toLowerCase().includes(needle)) : options
   const isPinned = (o: TargetOption) => pinned.some((p) => same(p, o))
   const shown = [...matched.filter(isPinned), ...matched.filter((o) => !isPinned(o))]
-  const groups = [
-    { title: "Items", icon: Lamp, list: shown.filter((o) => o.type === "fixture") },
-    { title: "Rooms", icon: DoorOpen, list: shown.filter((o) => o.type === "space") },
-    { title: "Jobs", icon: Hammer, list: shown.filter((o) => o.type === "job") },
-    { title: "Paint and Finishes", icon: Paintbrush, list: shown.filter((o) => o.type === "finish") },
-  ].filter((g) => g.list.length)
+  const groups = GROUPS.map((g) => ({
+    ...g,
+    list: shown.filter((o) => o.type === g.type),
+    ticked: options.filter((o) => o.type === g.type && value.some((v) => same(v, o))),
+  })).filter((g) => g.list.length)
 
   const toggle = (o: TargetOption, on: boolean) => {
     const t = { type: o.type, id: o.id }
     if (multiple) onChange(on ? value.filter((v) => !same(v, t)) : [...value, t])
-    else onChange(on ? [] : [t])
+    else {
+      onChange(on ? [] : [t])
+      setOpen(null)
+    }
   }
 
   return (
@@ -59,38 +70,59 @@ export function TargetPicker({
         </label>
       ) : null}
       {!options.length ? <p className="text-sm text-muted-foreground">Add rooms or items first, then file to them.</p> : null}
-      {groups.map((g) => (
-        <div key={g.title} className="flex flex-col gap-1.5">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-            <g.icon className="size-3.5" />
-            {g.title}
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {g.list.map((o) => {
-              const on = value.some((v) => same(v, o))
-              return (
-                <button
-                  key={o.type + o.id}
-                  type="button"
-                  role={multiple ? "checkbox" : "radio"}
-                  aria-checked={on}
-                  onClick={() => toggle(o, on)}
-                  className={cn(
-                    "flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-left text-[13px] font-semibold",
-                    on ? "bg-primary text-primary-foreground" : "border border-outline bg-surface hover:bg-surface2"
-                  )}
-                >
-                  {multiple && on ? <Check className="size-4 flex-none" /> : null}
-                  <span>
-                    {o.name}
-                    {o.detail ? <span className={cn("font-medium", on ? "opacity-80" : "text-muted-foreground")}> · {o.detail}</span> : null}
-                  </span>
-                </button>
-              )
-            })}
+      {groups.map((g) => {
+        const expanded = needle ? true : open === g.type
+        const summary = g.ticked.length ? g.ticked.map((o) => o.name).join(", ") : multiple ? "None ticked" : "None"
+        return (
+          <div key={g.type} className="overflow-hidden rounded-md border border-line bg-surface2">
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={() => setOpen(open === g.type ? null : g.type)}
+              disabled={!!needle}
+              className="flex h-12 w-full cursor-pointer items-center gap-2 pr-3 pl-3.5 text-left disabled:cursor-default"
+            >
+              <g.icon className="size-4 flex-none text-muted-foreground" />
+              <span className="flex-none text-[13px] font-bold">{g.title}</span>
+              <span className={cn("min-w-0 flex-1 truncate text-right text-sm", g.ticked.length ? "font-semibold" : "text-muted-foreground")}>
+                {needle ? `${g.list.length} match${g.list.length === 1 ? "" : "es"}` : summary}
+              </span>
+              <ChevronDown className={cn("size-4 flex-none text-muted-foreground transition-transform", expanded && "rotate-180")} />
+            </button>
+            {expanded ? (
+              <div className="flex max-h-64 flex-col overflow-y-auto border-t border-line bg-surface p-1">
+                {g.list.map((o) => {
+                  const on = value.some((v) => same(v, o))
+                  return (
+                    <button
+                      key={o.type + o.id}
+                      type="button"
+                      role={multiple ? "checkbox" : "radio"}
+                      aria-checked={on}
+                      onClick={() => toggle(o, on)}
+                      className="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm hover:bg-surface2"
+                    >
+                      <span
+                        className={cn(
+                          "flex size-5 flex-none items-center justify-center border",
+                          multiple ? "rounded-[6px]" : "rounded-full",
+                          on ? "border-primary bg-primary text-primary-foreground" : "border-outline bg-surface"
+                        )}
+                      >
+                        {on ? <Check className="size-3.5" strokeWidth={3} /> : null}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="font-semibold">{o.name}</span>
+                        {o.detail ? <span className="text-muted-foreground"> · {o.detail}</span> : null}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
           </div>
-        </div>
-      ))}
+        )
+      })}
       {needle && !groups.length ? <p className="text-sm text-muted-foreground">Nothing matches “{q}”.</p> : null}
     </div>
   )

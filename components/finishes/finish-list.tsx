@@ -2,9 +2,11 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Archive, Camera, Copy, ExternalLink, MoreHorizontal, Package, Pencil, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { withoutAdd } from "@/components/shell/header-action"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { colourTitle, finishKindLabel, surfaceLabel } from "@/lib/finishes"
 import { date } from "@/lib/format"
@@ -57,6 +59,9 @@ export function FinishList({
     setLastAdd(openAdd)
     if (openAdd && canEdit) setDrawer({ mode: "add", initial: BLANK_FINISH, rooms: [] })
   }
+  const router = useRouter()
+  const path = usePathname()
+  const params = useSearchParams()
   const [, start] = useTransition()
   // look the row up from the latest props, so photos added while editing appear straight away
   const editing = drawer?.mode === "edit" ? (rows.find((r) => r.id === drawer.id) ?? null) : null
@@ -136,21 +141,17 @@ export function FinishList({
       }, new Map<string, FinishRow[]>()).values()]
     : []
 
-  // on the Paint page the Add button sits above the colours; on a room it follows the list
-  const addButton = canEdit ? (
-    <Button
-      variant={groupByColour ? "add" : "outline"}
-      className={groupByColour ? "w-full desk:w-auto desk:self-end" : "mt-3 self-start"}
-      onClick={() => setDrawer({ mode: "add", initial: BLANK_FINISH, rooms: presetRoom ? [presetRoom] : [] })}
-    >
-      <Plus />
-      {groupByColour ? "Add Paint" : "Add Paint or Finish"}
-    </Button>
-  ) : null
+  // on a room the Add button follows the list; the Paint page has it beside the title (?add=1)
+  const addButton =
+    canEdit && !groupByColour ? (
+      <Button variant="outline" className="mt-3 self-start" onClick={() => setDrawer({ mode: "add", initial: BLANK_FINISH, rooms: presetRoom ? [presetRoom] : [] })}>
+        <Plus />
+        Add Paint or Finish
+      </Button>
+    ) : null
 
   return (
     <>
-      {groupByColour ? addButton : null}
       {groupByColour ? (
         <div className="grid grid-cols-1 items-start gap-4 desk:grid-cols-2">
           {groups.map((g) => {
@@ -195,7 +196,11 @@ export function FinishList({
 
       <FinishDrawer
         open={!!drawer && (drawer.mode === "add" || !!editing)}
-        onOpenChange={(o) => !o && setDrawer(null)}
+        onOpenChange={(o) => {
+          if (o) return
+          setDrawer(null)
+          if (openAdd) router.replace(withoutAdd(path, params), { scroll: false }) // drop ?add=1 so the header button can reopen it
+        }}
         initial={drawer?.mode === "add" ? drawer.initial : (editing?.input ?? BLANK_FINISH)}
         editing={editing}
         presetRooms={drawer?.mode === "add" ? drawer.rooms : []}

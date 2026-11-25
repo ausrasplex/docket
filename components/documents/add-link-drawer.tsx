@@ -2,13 +2,12 @@
 
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
-import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Drawer, FieldLabel } from "@/components/drawer"
-import { DOC_KINDS } from "@/lib/documents"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { addWebLink, type Target } from "@/app/(app)/documents/actions"
+import { KindSelect } from "./kind-select"
 import { TargetPicker, type TargetOption } from "./target-picker"
 
 const LINK_KINDS: DocumentKind[] = ["MANUAL", "SUPPORT", "SOFTWARE", "SPEC_SHEET", "WARRANTY", "OTHER"]
@@ -74,27 +73,7 @@ export function AddLinkDrawer({
       <FieldLabel label="Title (optional)" hint="Leave blank to use the site's name.">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Online user manual" />
       </FieldLabel>
-      <div role="radiogroup" aria-label="What is it?" className="flex flex-col gap-2">
-        <span className="text-[13px] font-bold text-muted-foreground">What Is It?</span>
-        <div className="flex flex-wrap gap-2">
-          {DOC_KINDS.filter((k) => LINK_KINDS.includes(k.id)).map((k) => (
-            <button
-              key={k.id}
-              type="button"
-              role="radio"
-              aria-checked={kind === k.id}
-              onClick={() => setKind(k.id)}
-              className={cn(
-                "flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold",
-                kind === k.id ? "bg-primary text-primary-foreground" : "border border-outline bg-surface hover:bg-surface2"
-              )}
-            >
-              <k.icon className="size-4" />
-              {k.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KindSelect value={kind} onChange={setKind} only={(k) => LINK_KINDS.includes(k)} />
       {!fixed && targets ? <TargetPicker options={targets} value={picked} onChange={setPicked} label="File To (optional)" /> : null}
       {target ? (
         <FieldLabel label="Label (optional)" hint="What it's for: “Drivers”, “BIOS updates”, “Indoor unit”.">

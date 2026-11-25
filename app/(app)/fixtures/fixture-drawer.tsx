@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useId, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { cn } from "cn"
@@ -9,11 +9,35 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
 import { money } from "@/lib/format"
-import { BrandField, Chip, Chips, Section, StoreField } from "@/components/form-bits"
+import { BrandField, Section, StoreField } from "@/components/form-bits"
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CATEGORIES } from "@/lib/fixtures"
 import { createFixture, updateFixture, type FirstService, type FixtureInput } from "./actions"
 
 const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
+// Radix Select can't hold an empty value, so "no room" and "portable" get their own
+const NO_ROOM = "__none"
+const PORTABLE = "__portable"
+
+/** A labelled dropdown in the drawer's field style. */
+function Dropdown({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
+  const id = useId()
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span id={id} className="text-[13px] font-bold text-muted-foreground">
+        {label}
+      </span>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger aria-labelledby={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" className="max-h-80">
+          {children}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
 
 export const BLANK_FIXTURE: FixtureInput = {
   name: "",
@@ -32,8 +56,8 @@ export const BLANK_FIXTURE: FixtureInput = {
   warrantyExpiresAt: null,
   purchasePrice: "",
   replacementValue: "",
-  includedInSale: true,
-  serviceEnabled: true,
+  includedInSale: false,
+  serviceEnabled: false,
   replacementFromPrices: false,
   notes: "",
   registration: "",
@@ -137,37 +161,43 @@ export function FixtureDrawer({
       </FieldLabel>
 
       {!isPart ? (
-        <Chips label="Category">
+        <Dropdown label="Category" value={v.category} onChange={(c) => set("category", c as FixtureInput["category"])}>
           {CATEGORIES.map((c) => (
-            <Chip key={c.id} on={v.category === c.id} onClick={() => set("category", c.id)}>
+            <SelectItem key={c.id} value={c.id}>
               <span className={cn("flex size-6 items-center justify-center rounded-full text-on-a", TONE[c.tone])}>
                 <c.icon className="size-3.5" />
               </span>
               {c.label}
-            </Chip>
+            </SelectItem>
           ))}
-        </Chips>
+        </Dropdown>
       ) : null}
 
-      <Chips label={isPart ? "Room (if different from the item)" : "Room"}>
-        <Chip on={!v.spaceId && !v.portable} onClick={() => setV((p) => ({ ...p, spaceId: null, portable: false }))}>
-          {isPart ? "Same as item" : "None"}
-        </Chip>
-        {isPart ? null : (
-          <Chip
-            on={v.portable}
-            // portable things are usually contents you'd take with you, so that box is unticked too (it can be ticked again)
-            onClick={() => setV((p) => (p.portable ? p : { ...p, spaceId: null, portable: true, includedInSale: false }))}
-          >
-            Portable
-          </Chip>
-        )}
+      <Dropdown
+        label={isPart ? "Room (if different from the item)" : "Room"}
+        value={v.portable ? PORTABLE : (v.spaceId ?? NO_ROOM)}
+        onChange={(r) =>
+          setV((p) =>
+            r === NO_ROOM
+              ? { ...p, spaceId: null, portable: false }
+              : r === PORTABLE
+                ? // portable things are usually contents you'd take with you, so that box is unticked too (it can be ticked again)
+                  p.portable
+                  ? p
+                  : { ...p, spaceId: null, portable: true, includedInSale: false }
+                : { ...p, spaceId: r, portable: false }
+          )
+        }
+      >
+        <SelectItem value={NO_ROOM}>{isPart ? "Same as item" : "None"}</SelectItem>
+        {isPart ? null : <SelectItem value={PORTABLE}>Portable</SelectItem>}
+        {rooms.length ? <SelectSeparator /> : null}
         {rooms.map((r) => (
-          <Chip key={r.id} on={v.spaceId === r.id} onClick={() => setV((p) => ({ ...p, spaceId: r.id, portable: false }))}>
+          <SelectItem key={r.id} value={r.id}>
             {r.name}
-          </Chip>
+          </SelectItem>
         ))}
-      </Chips>
+      </Dropdown>
 
       <Section title="Make and Model" />
       <BrandField value={v.brand} onChange={(b) => set("brand", b)} brands={brands} />

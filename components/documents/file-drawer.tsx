@@ -2,15 +2,14 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
-import { DOC_KINDS } from "@/lib/documents"
 import type { DocumentKind } from "@/generated/prisma/enums"
 import { filingOf, setFiling, updateDocument, type Target } from "@/app/(app)/documents/actions"
+import { KindSelect } from "./kind-select"
 import { TargetPicker, type TargetOption } from "./target-picker"
 export type EditableDoc = { id: string; title: string; kind: DocumentKind; notes: string | null; documentDate: string | null; isLink: boolean }
 
@@ -96,7 +95,6 @@ export function FileDrawer({
       onOpenChange(false)
     })
 
-  const kinds = doc?.isLink ? DOC_KINDS : DOC_KINDS.filter((k) => k.id !== "SUPPORT")
   return (
     <Drawer
       open={!!doc}
@@ -118,27 +116,7 @@ export function FileDrawer({
         <Input value={title} onChange={(e) => setTitle(e.target.value)} />
       </FieldLabel>
 
-      <div role="radiogroup" aria-label="What is it?" className="flex flex-col gap-2">
-        <span className="text-[13px] font-bold text-muted-foreground">What Is It?</span>
-        <div className="flex flex-wrap gap-2">
-          {kinds.map((k) => (
-            <button
-              key={k.id}
-              type="button"
-              role="radio"
-              aria-checked={kind === k.id}
-              onClick={() => setKind(k.id)}
-              className={cn(
-                "flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold",
-                kind === k.id ? "bg-primary text-primary-foreground" : "border border-outline bg-surface hover:bg-surface2"
-              )}
-            >
-              <k.icon className="size-4" />
-              {k.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KindSelect value={kind} onChange={setKind} only={doc?.isLink ? undefined : (k) => k !== "SUPPORT"} />
 
       <FieldLabel label="Date on It (optional)" hint="The date on the receipt, invoice or certificate.">
         <Input type="date" value={when} onChange={(e) => setWhen(e.target.value)} className="w-48" />

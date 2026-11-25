@@ -154,6 +154,8 @@ export async function createFixture(input: FixtureInput, parentId: string | null
       propertyId: c.property.id,
       parentId,
       portable: parentId ? false : input.portable, // parts go where their item goes
+      // a new vehicle given a service interval is tracked, whatever the box said
+      ...(!parentId && (everyMonths || everyKm) ? { serviceEnabled: true } : {}),
       sortOrder: (last?._max.sortOrder ?? 0) + 1,
       brandId: await brandId(c.householdId, input.brand),
       createdById: c.user.id,

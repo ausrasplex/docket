@@ -1,6 +1,8 @@
 import { Suspense } from "react"
-import { Paintbrush } from "lucide-react"
+import { Paintbrush, Plus } from "lucide-react"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
+import { HeaderAction } from "@/components/shell/header-action"
+import { MemberOnly } from "@/components/shell/member-only"
 import { EmptyState } from "@/components/shell/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FinishList } from "@/components/finishes/finish-list"
@@ -14,7 +16,16 @@ export const metadata = { title: "Paint · Docket" }
 export default function PaintPage({ searchParams }: PageProps<"/paint">) {
   return (
     <>
-      <PageHeader title="Paint" />
+      <PageHeader
+        title="Paint"
+        actions={
+          <Suspense fallback={null}>
+            <MemberOnly>
+              <HeaderAction add="1" icon={<Plus />} label="Add Paint" />
+            </MemberOnly>
+          </Suspense>
+        }
+      />
       <PageBody>
         <Suspense fallback={<Skeleton className="h-64 rounded-3xl" />}>
           <Paint searchParams={searchParams} />
