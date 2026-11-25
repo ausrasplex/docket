@@ -90,7 +90,7 @@ export function TargetPicker({
               <ChevronDown className={cn("size-4 flex-none text-muted-foreground transition-transform", expanded && "rotate-180")} />
             </button>
             {expanded ? (
-              <div className="flex max-h-64 flex-col overflow-y-auto border-t border-line bg-surface p-1">
+              <div className="flex max-h-64 flex-col overflow-y-auto border-t border-line bg-surface p-1.5">
                 {g.list.map((o) => {
                   const on = value.some((v) => same(v, o))
                   return (
