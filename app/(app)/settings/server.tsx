@@ -3,6 +3,8 @@ import { db } from "@/lib/db"
 import { date } from "@/lib/format"
 import { diskSpace, householdUsage } from "@/lib/storage"
 import { HouseholdInvites } from "./server-invites"
+import { UploadLimit } from "./upload-limit"
+import { UPLOAD_LIMITS, maxUploadMb } from "@/lib/server-config"
 
 /** Sizes for people: "0 B", "312 KB", "48.2 MB", "1.27 GB". */
 function size(n: number) {
@@ -17,7 +19,7 @@ function size(n: number) {
  * household's files take. Only totals: running the server doesn't show anyone else's records.
  */
 export async function ServerCard({ currentHouseholdId }: { currentHouseholdId: string }) {
-  const [households, invites, disk] = await Promise.all([
+  const [households, invites, disk, uploadMb] = await Promise.all([
     db.household.findMany({ orderBy: { createdAt: "asc" }, select: { id: true, name: true, createdAt: true, _count: { select: { memberships: true } } } }),
     db.invite.findMany({
       where: { kind: "HOUSEHOLD", revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
@@ -25,6 +27,7 @@ export async function ServerCard({ currentHouseholdId }: { currentHouseholdId: s
       orderBy: { createdAt: "desc" },
     }),
     diskSpace(),
+    maxUploadMb(),
   ])
   const usage = await Promise.all(households.map((h) => householdUsage(h.id)))
   const rows = households.map((h, i) => ({ ...h, bytes: usage[i].total })).sort((a, b) => b.bytes - a.bytes)
@@ -41,6 +44,8 @@ export async function ServerCard({ currentHouseholdId }: { currentHouseholdId: s
         <HouseholdInvites
           invites={open.map((i) => ({ id: i.id, uses: i.uses, maxUses: i.maxUses, expires: i.expiresAt ? date(i.expiresAt) : null, by: i.createdBy.name }))}
         />
+
+        <UploadLimit value={uploadMb} options={UPLOAD_LIMITS} />
 
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-3">

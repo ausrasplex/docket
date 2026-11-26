@@ -25,6 +25,15 @@ datasource db {
 
 // ───────────────────────── Accounts and households ─────────────────────────
 
+/// Settings for the whole Docket server (one row, id 1), changed by a server admin in Settings › Server.
+model ServerConfig {
+  id          Int      @id @default(1)
+  /// the largest photo or PDF that can be uploaded, in MB (lib/server-config.ts lists the choices)
+  maxUploadMb Int      @default(25)
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
 model User {
   id            String   @id @default(cuid())
   name          String

@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState, useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { cn } from "cn"
@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
 import { money } from "@/lib/format"
 import { BrandField, Section, StoreField } from "@/components/form-bits"
-import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SelectItem, SelectSeparator } from "@/components/ui/select"
+import { Dropdown } from "@/components/dropdown"
 import { CATEGORIES } from "@/lib/fixtures"
 import { createFixture, updateFixture, type FirstService, type FixtureInput } from "./actions"
 
@@ -18,26 +19,6 @@ const TONE = { a1: "bg-a1", a2: "bg-a2", a3: "bg-a3" } as const
 // Radix Select can't hold an empty value, so "no room" and "portable" get their own
 const NO_ROOM = "__none"
 const PORTABLE = "__portable"
-
-/** A labelled dropdown in the drawer's field style. */
-function Dropdown({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  const id = useId()
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span id={id} className="text-[13px] font-bold text-muted-foreground">
-        {label}
-      </span>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger aria-labelledby={id} className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent position="popper" className="max-h-80">
-          {children}
-        </SelectContent>
-      </Select>
-    </div>
-  )
-}
 
 export const BLANK_FIXTURE: FixtureInput = {
   name: "",

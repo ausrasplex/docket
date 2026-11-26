@@ -3,13 +3,13 @@ import { createHash, randomBytes } from "node:crypto"
 import { mkdir, readFile, readdir, rm, statfs, writeFile, stat } from "node:fs/promises"
 import path from "node:path"
 import sharp from "sharp"
+import { maxUploadMb } from "@/lib/server-config"
 
 // Files live on disk under UPLOAD_DIR (a mounted volume in Docker); the database stores only the key.
 // Keys look like "<householdId>/2026/11/<random>.jpg" and are only ever made here.
 
 // turbopackIgnore: a runtime folder, not part of the build (otherwise the whole project gets traced)
 const ROOT = path.resolve(/*turbopackIgnore: true*/ process.env.UPLOAD_DIR ?? "./data/uploads")
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
 const TYPES: Record<string, { ext: string; image: boolean }> = {
   "image/jpeg": { ext: "jpg", image: true },
@@ -54,7 +54,8 @@ export type Stored = {
 export async function storeFile(householdId: string, buf: Buffer, mime: string): Promise<Stored> {
   const t = acceptedType(mime)
   if (!t) throw new Error("Only photos and PDFs can be uploaded.")
-  if (buf.length > MAX_UPLOAD_BYTES) throw new Error("Files can be up to 25 MB.")
+  const mb = await maxUploadMb()
+  if (buf.length > mb * 1024 * 1024) throw new Error(`Files can be up to ${mb} MB.`)
   if (!sniff(buf, mime)) throw new Error("That file isn't the type it claims to be.")
 
   const now = new Date()

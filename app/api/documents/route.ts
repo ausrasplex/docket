@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSession } from "@/lib/dal"
 import { acceptedType, storeFile } from "@/lib/storage"
+import { maxUploadMb } from "@/lib/server-config"
 import { adoptUploadedCover, coverCopiesOf, setCover } from "@/lib/cover"
 import { atLeast } from "@/lib/roles"
 import type { DocumentKind } from "@/generated/prisma/enums"
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
   // "asCover" with a spaceId or fixtureId: the first photo becomes the room's or item's photo (in place of its icon)
   const cover = form.get("asCover") === "1" ? (link?.spaceId ? { kind: "space" as const, id: link.spaceId } : link?.fixtureId ? { kind: "fixture" as const, id: link.fixtureId } : null) : null
 
+  const mb = await maxUploadMb()
   const created: string[] = []
   const pdfs: string[] = []
   const errors: string[] = []
@@ -59,6 +61,10 @@ export async function POST(req: Request) {
     const mime = file.type || "application/octet-stream"
     if (!acceptedType(mime)) {
       errors.push(`${file.name}: only photos and PDFs can be uploaded.`)
+      continue
+    }
+    if (file.size > mb * 1024 * 1024) {
+      errors.push(`${file.name}: files can be up to ${mb} MB.`)
       continue
     }
     try {

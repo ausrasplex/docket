@@ -8,12 +8,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
-import { BrandField, Chip, Chips, Section, StoreField } from "@/components/form-bits"
+import { BrandField, Section, StoreField } from "@/components/form-bits"
+import { SelectItem, SelectSeparator } from "@/components/ui/select"
+import { Dropdown, MultiDropdown } from "@/components/dropdown"
 import { DocumentRow } from "@/components/documents/document-row"
 import { DocMenu } from "@/components/documents/doc-menu"
 import { FINISH_KINDS, SHEENS, SURFACES, normaliseHex } from "@/lib/finishes"
 import { createFinishes, updateFinish, type FinishInput } from "@/app/(app)/paint/actions"
 import type { FinishRow } from "./finish-types"
+
+// Radix Select can't hold an empty value
+const NO_SHEEN = "__none"
 
 /**
  * Add a paint colour or finish to one or more rooms, or edit one. When editing, photos of the tin
@@ -48,8 +53,6 @@ export function FinishDrawer({
     }
   }
   const set = <K extends keyof FinishInput>(k: K, val: FinishInput[K]) => setV((p) => ({ ...p, [k]: val }))
-  const toggleRoom = (id: string) =>
-    setPicked((p) => (editing ? [id] : p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
   const swatch = normaliseHex(v.hex)
   const isPaint = v.kind === "PAINT" || v.kind === "STAIN"
 
@@ -78,32 +81,36 @@ export function FinishDrawer({
         </>
       }
     >
-      <Chips label={editing ? "Room" : "Rooms"}>
-        {rooms.map((r) => (
-          <Chip key={r.id} on={picked.includes(r.id)} onClick={() => toggleRoom(r.id)}>
-            {r.name}
-          </Chip>
-        ))}
-      </Chips>
+      {editing ? (
+        <Dropdown label="Room" value={picked[0] ?? ""} onChange={(id) => setPicked([id])}>
+          {rooms.map((r) => (
+            <SelectItem key={r.id} value={r.id}>
+              {r.name}
+            </SelectItem>
+          ))}
+        </Dropdown>
+      ) : (
+        <MultiDropdown label="Rooms" options={rooms} value={picked} onChange={setPicked} placeholder="Pick one or more rooms" />
+      )}
 
-      <Chips label="Surface">
+      <Dropdown label="Surface" value={v.surface} onChange={(s) => set("surface", s as FinishInput["surface"])}>
         {SURFACES.map((s) => (
-          <Chip key={s.id} on={v.surface === s.id} onClick={() => set("surface", s.id)}>
+          <SelectItem key={s.id} value={s.id}>
             {s.label}
-          </Chip>
+          </SelectItem>
         ))}
-      </Chips>
+      </Dropdown>
       <FieldLabel label="Which Part (optional)">
         <Input value={v.surfaceNote} onChange={(e) => set("surfaceNote", e.target.value)} placeholder="Wall behind the bed" />
       </FieldLabel>
 
-      <Chips label="Type">
+      <Dropdown label="Type" value={v.kind} onChange={(k) => set("kind", k as FinishInput["kind"])}>
         {FINISH_KINDS.map((k) => (
-          <Chip key={k.id} on={v.kind === k.id} onClick={() => set("kind", k.id)}>
+          <SelectItem key={k.id} value={k.id}>
             {k.label}
-          </Chip>
+          </SelectItem>
         ))}
-      </Chips>
+      </Dropdown>
 
       <Section title="Colour" />
       <div className="flex items-center gap-3 rounded-2xl bg-surface2 p-3">
@@ -139,13 +146,15 @@ export function FinishDrawer({
         <Input value={v.product} onChange={(e) => set("product", e.target.value)} placeholder={isPaint ? "Wash&Wear Low Sheen" : "Product or range"} />
       </FieldLabel>
       {isPaint ? (
-        <Chips label="Sheen">
-          {SHEENS.map((s) => (
-            <Chip key={s} on={v.sheen === s} onClick={() => set("sheen", v.sheen === s ? "" : s)}>
+        <Dropdown label="Sheen" value={v.sheen || NO_SHEEN} onChange={(s) => set("sheen", s === NO_SHEEN ? "" : s)}>
+          <SelectItem value={NO_SHEEN}>Not sure</SelectItem>
+          <SelectSeparator />
+          {[...SHEENS, ...(v.sheen && !(SHEENS as readonly string[]).includes(v.sheen) ? [v.sheen] : [])].map((s) => (
+            <SelectItem key={s} value={s}>
               {s}
-            </Chip>
+            </SelectItem>
           ))}
-        </Chips>
+        </Dropdown>
       ) : null}
       <FieldLabel label="Size">
         <Input value={v.size} onChange={(e) => set("size", e.target.value)} placeholder={isPaint ? "4 L" : "1200 x 600mm"} className="w-48" />

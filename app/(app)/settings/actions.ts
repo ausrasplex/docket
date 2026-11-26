@@ -10,6 +10,7 @@ import { logActivity, requireHousehold, requireUser } from "@/lib/dal"
 import { baseUrl } from "@/lib/base-url"
 import { hashToken, newToken } from "@/lib/tokens"
 import { isServerAdmin } from "@/lib/households"
+import { UPLOAD_LIMITS } from "@/lib/server-config"
 import { atLeast, ROLE_LABELS } from "@/lib/roles"
 import { parseMode, parseTheme } from "@/lib/theme"
 import type { Role } from "@/generated/prisma/enums"
@@ -227,4 +228,14 @@ export async function backUpNow(): Promise<Result> {
   const r = await runBackup()
   revalidatePath("/settings")
   return r.ok ? { ok: true } : { ok: false, error: `The backup failed: ${r.error}` }
+}
+
+/** The largest photo or PDF anyone on this server can upload (server admins only). */
+export async function setUploadLimit(mb: number): Promise<Result> {
+  const c = await requireHousehold()
+  if (!(await isServerAdmin(c.user.id))) return { ok: false, error: "Only the server's admin can change this." }
+  if (!(UPLOAD_LIMITS as readonly number[]).includes(mb)) return { ok: false, error: "Pick one of the listed sizes." }
+  await db.serverConfig.upsert({ where: { id: 1 }, create: { id: 1, maxUploadMb: mb, updatedById: c.user.id }, update: { maxUploadMb: mb, updatedById: c.user.id } })
+  revalidatePath("/settings")
+  return { ok: true }
 }
