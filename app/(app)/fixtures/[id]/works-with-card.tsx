@@ -10,6 +10,7 @@ import { Drawer } from "@/components/drawer"
 import { CategoryTile } from "@/components/fixtures/category-tile"
 import type { FixtureCategory } from "@/generated/prisma/enums"
 import { setWorksWith } from "../works-with-actions"
+import { useIntent } from "@/components/shell/intent"
 
 export type WorksWithItem = { id: string; name: string; detail: string; category: FixtureCategory; src: string | null; archived: boolean; linked: boolean }
 
@@ -19,8 +20,9 @@ export type WorksWithItem = { id: string; name: string; detail: string; category
  */
 export function WorksWithList({ id, name, items, canEdit }: { id: string; name: string; items: WorksWithItem[]; canEdit: boolean }) {
   const linked = items.filter((x) => x.linked && !x.archived)
-  const [open, setOpen] = useState(false)
-  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const intent = useIntent("works-with")
+  const [open, setOpen] = useState(intent.hit && canEdit)
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(items.filter((x) => x.linked).map((x) => x.id)))
   const [q, setQ] = useState("")
   const [pending, start] = useTransition()
 
@@ -49,6 +51,7 @@ export function WorksWithList({ id, name, items, canEdit }: { id: string; name: 
       if (!r.ok) return void toast.error(r.error)
       toast("Saved")
       setOpen(false)
+      intent.clear()
     })
 
   return (
@@ -82,7 +85,11 @@ export function WorksWithList({ id, name, items, canEdit }: { id: string; name: 
 
       <Drawer
         open={open}
-        onOpenChange={(o) => !pending && setOpen(o)}
+        onOpenChange={(o) => {
+          if (pending) return
+          setOpen(o)
+          if (!o) intent.clear()
+        }}
         title="Works With"
         description={`Tick everything ${name} is used with. It shows on their pages too.`}
         footer={

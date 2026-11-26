@@ -14,6 +14,7 @@ import { BackupsCard } from "./backups"
 import { PriceChecksCard } from "./price-checks"
 import { ServerCard } from "./server"
 import { CalendarCard } from "./calendar"
+import { Reminders } from "./reminders"
 import { Members } from "./members"
 import { HouseholdName, Profile } from "./profile"
 import { StorageCard } from "./storage"
@@ -34,7 +35,7 @@ export default function SettingsPage() {
 async function Settings() {
   const c = await requireHousehold()
   const admin = atLeast(c.role, "ADMIN")
-  const [members, invites, serverAdmin, feed] = await Promise.all([
+  const [members, invites, serverAdmin, feed, pushDevices] = await Promise.all([
     db.membership.findMany({
       where: { householdId: c.householdId },
       include: { user: { select: { id: true, name: true, email: true } } },
@@ -49,6 +50,7 @@ async function Settings() {
       : [],
     isServerAdmin(c.user.id),
     db.calendarFeed.findUnique({ where: { userId: c.user.id }, select: { createdAt: true, lastUsedAt: true } }),
+    db.pushSubscription.findMany({ where: { userId: c.user.id }, orderBy: { createdAt: "asc" }, select: { device: true } }),
   ])
   const open = invites.filter((i) => i.uses < i.maxUses)
 
@@ -111,6 +113,15 @@ async function Settings() {
           </CardHeader>
           <CardContent>
             <Profile name={c.user.name} email={c.user.email} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Reminders</CardTitle>
+            <CardDescription>A notification on your phone or computer when a service, rego, warranty or loan comes due.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Reminders devices={pushDevices.map((d) => d.device ?? "A device")} />
           </CardContent>
         </Card>
         <CalendarCard feed={feed ? { made: date(feed.createdAt), checked: feed.lastUsedAt?.toISOString() ?? null } : null} />

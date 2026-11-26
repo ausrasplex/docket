@@ -3,7 +3,10 @@
 import { useId, useState } from "react"
 import { Check, ChevronDown } from "lucide-react"
 import { cn } from "cn"
-import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+/** Radix Select can't hold an empty value, so "none" gets its own. */
+export const NONE = "__none"
 
 /** A labelled single-choice dropdown in the drawer's field style; children are SelectItems. */
 export function Dropdown({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
@@ -22,6 +25,25 @@ export function Dropdown({ label, value, onChange, children }: { label: string; 
         </SelectContent>
       </Select>
     </div>
+  )
+}
+
+/**
+ * A dropdown over a list of words that can also be left blank ("" is the `none` choice). A saved value that's no
+ * longer in the list still shows, so editing an old record doesn't lose it.
+ */
+export function WordDropdown({ label, value, onChange, options, none = "None" }: { label: string; value: string; onChange: (v: string) => void; options: readonly string[]; none?: string }) {
+  const all = value && !options.includes(value) ? [...options, value] : options
+  return (
+    <Dropdown label={label} value={value || NONE} onChange={(v) => onChange(v === NONE ? "" : v)}>
+      <SelectItem value={NONE}>{none}</SelectItem>
+      <SelectSeparator />
+      {all.map((o) => (
+        <SelectItem key={o} value={o}>
+          {o}
+        </SelectItem>
+      ))}
+    </Dropdown>
   )
 }
 

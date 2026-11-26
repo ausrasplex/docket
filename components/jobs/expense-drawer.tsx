@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel, OptionRow } from "@/components/drawer"
-import { Chip, Chips, Section } from "@/components/form-bits"
+import { Section } from "@/components/form-bits"
+import { SelectItem, SelectSeparator } from "@/components/ui/select"
+import { Dropdown, NONE, WordDropdown } from "@/components/dropdown"
 import { DocumentRow, type DocLike } from "@/components/documents/document-row"
 import { DocMenu } from "@/components/documents/doc-menu"
 import type { InboxDoc } from "@/components/documents/doc-groups"
@@ -233,16 +235,15 @@ export function ExpenseDrawer({
       </div>
 
       {!lockJob && jobs.length ? (
-        <Chips label="Job (optional)">
-          <Chip on={!v.jobId} onClick={() => set("jobId", null)}>
-            None
-          </Chip>
+        <Dropdown label="Job (optional)" value={v.jobId ?? NONE} onChange={(j) => set("jobId", j === NONE ? null : j)}>
+          <SelectItem value={NONE}>None</SelectItem>
+          <SelectSeparator />
           {jobs.map((j) => (
-            <Chip key={j.id} on={v.jobId === j.id} onClick={() => set("jobId", j.id)}>
+            <SelectItem key={j.id} value={j.id}>
               {j.title}
-            </Chip>
+            </SelectItem>
           ))}
-        </Chips>
+        </Dropdown>
       ) : null}
 
       <Section title="Who and How" />
@@ -250,20 +251,10 @@ export function ExpenseDrawer({
       <FieldLabel label="Or a Shop or Supplier">
         <Input value={v.vendor} onChange={(e) => set("vendor", e.target.value)} placeholder="Bunnings" />
       </FieldLabel>
-      <Chips label="Category">
-        {EXPENSE_CATEGORIES.map((c) => (
-          <Chip key={c} on={v.category === c} onClick={() => set("category", v.category === c ? "" : c)}>
-            {c}
-          </Chip>
-        ))}
-      </Chips>
-      <Chips label="Paid By">
-        {PAYMENT_METHODS.map((m) => (
-          <Chip key={m} on={v.paymentMethod === m} onClick={() => set("paymentMethod", v.paymentMethod === m ? "" : m)}>
-            {m}
-          </Chip>
-        ))}
-      </Chips>
+      <div className="grid grid-cols-2 gap-3">
+        <WordDropdown label="Category" value={v.category} onChange={(c) => set("category", c)} options={EXPENSE_CATEGORIES} none="Not set" />
+        <WordDropdown label="Paid By" value={v.paymentMethod} onChange={(m) => set("paymentMethod", m)} options={PAYMENT_METHODS} none="Not set" />
+      </div>
       <FieldLabel label="Notes (optional)">
         <Textarea value={v.notes} onChange={(e) => set("notes", e.target.value)} />
       </FieldLabel>

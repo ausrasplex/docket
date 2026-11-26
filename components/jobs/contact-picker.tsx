@@ -5,7 +5,8 @@ import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Chip, Chips } from "@/components/form-bits"
+import { SelectItem, SelectSeparator } from "@/components/ui/select"
+import { Dropdown, NONE, WordDropdown } from "@/components/dropdown"
 import { TRADES } from "@/lib/jobs"
 import { saveContact } from "@/app/(app)/jobs/actions"
 
@@ -47,47 +48,30 @@ export function ContactPicker({
 
   return (
     <div className="flex flex-col gap-2">
-      <Chips label={label}>
-        <Chip on={!value} onClick={() => onChange(null)}>
-          None
-        </Chip>
-        {all.map((c) => (
-          <Chip key={c.id} on={value === c.id} onClick={() => onChange(c.id)}>
-            {c.name}
-            {c.trade ? <span className="font-medium opacity-70">· {c.trade}</span> : null}
-          </Chip>
-        ))}
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Dropdown label={label} value={value ?? NONE} onChange={(id) => onChange(id === NONE ? null : id)}>
+            <SelectItem value={NONE}>None</SelectItem>
+            {all.length ? <SelectSeparator /> : null}
+            {all.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+                {c.trade ? <span className="font-medium text-muted-foreground">· {c.trade}</span> : null}
+              </SelectItem>
+            ))}
+          </Dropdown>
+        </div>
         {!adding ? (
-          // an action, not one of the choices, so a plain button rather than a radio chip
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-outline px-3.5 text-[13px] font-semibold hover:bg-surface2"
-          >
-            <Plus className="size-4" />
+          <Button type="button" variant="outline" className="h-12" onClick={() => setAdding(true)}>
+            <Plus />
             New
-          </button>
+          </Button>
         ) : null}
-      </Chips>
+      </div>
       {adding ? (
         <div className="flex flex-col gap-2.5 rounded-2xl bg-surface2 p-3">
           <Input aria-label="Their name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name or business" autoFocus className="bg-surface" />
-          <div className="flex flex-wrap gap-1.5">
-            {TRADES.map((t) => (
-              <button
-                key={t}
-                type="button"
-                aria-pressed={trade === t}
-                onClick={() => setTrade(trade === t ? "" : t)}
-                className={
-                  "min-h-9 cursor-pointer rounded-full px-3 text-xs font-semibold " +
-                  (trade === t ? "bg-primary text-primary-foreground" : "border border-outline bg-surface hover:bg-surface2")
-                }
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <WordDropdown label="Trade" value={trade} onChange={setTrade} options={TRADES} />
           <Input aria-label="Their phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" inputMode="tel" className="bg-surface" />
           <div className="flex gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => setAdding(false)}>

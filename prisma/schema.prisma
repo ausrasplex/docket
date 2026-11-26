@@ -27,11 +27,16 @@ datasource db {
 
 /// Settings for the whole Docket server (one row, id 1), changed by a server admin in Settings › Server.
 model ServerConfig {
-  id          Int      @id @default(1)
+  id              Int      @id @default(1)
   /// the largest photo or PDF that can be uploaded, in MB (lib/server-config.ts lists the choices)
-  maxUploadMb Int      @default(25)
-  updatedById String?
-  updatedAt   DateTime @updatedAt
+  maxUploadMb     Int      @default(25)
+  /// the server's key pair for phone reminders (Web Push), made the first time someone turns reminders on
+  vapidPublicKey  String?
+  vapidPrivateKey String?
+  /// who the server says it is to push services: its https address, saved when reminders are first turned on
+  pushSubject     String?
+  updatedById     String?
+  updatedAt       DateTime @updatedAt
 }
 
 model User {
@@ -54,19 +59,38 @@ model User {
   // household's storage total (never their records). The first account on the server.
   serverAdmin Boolean @default(false)
 
-  sessions       Session[]
-  accounts       Account[]
-  memberships    Membership[]
-  invitesCreated Invite[]      @relation("InviteCreatedBy")
-  invitesUsed    InviteUse[]
-  activity       Activity[]
-  calendarFeed   CalendarFeed?
+  sessions          Session[]
+  accounts          Account[]
+  memberships       Membership[]
+  invitesCreated    Invite[]           @relation("InviteCreatedBy")
+  invitesUsed       InviteUse[]
+  activity          Activity[]
+  calendarFeed      CalendarFeed?
+  pushSubscriptions PushSubscription[]
 
   @@map("user")
 }
 
 /// A private calendar address (iCalendar) for one person: services due, bookings, warranties and rego across
 /// the households they belong to. Only a hash of its secret is kept; resetting it makes a new address.
+/// A phone or browser that gets reminders (Web Push). One per device; a device that stops answering is removed.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  /// "iPhone", "Chrome on Windows": so people can tell their devices apart
+  device     String?
+  /// what the last reminder covered, so the next one only goes out when something new needs attention
+  lastKeys   String[]
+  lastSentAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
 model CalendarFeed {
   id         String    @id @default(cuid())
   userId     String    @unique
@@ -142,6 +166,7 @@ model Household {
   properties     Property[]
   spaces         Space[]
   fixtures       Fixture[]
+  itemMoves      ItemMove[]
   finishes       Finish[]
   contacts       Contact[]
   brands         Brand[]
@@ -371,6 +396,12 @@ model Fixture {
   /// shows the Parts section on the item's page; can only be turned off while the item has no parts
   partsEnabled          Boolean  @default(true)
 
+  // where a portable thing is now, and who has it (kept up by its Moves and Loans log, lib/moves.ts)
+  location    String? // "Caravan", "Mum's house"; null means its usual place
+  lentTo      String?
+  lentAt      DateTime? @db.Date
+  lentDueBack DateTime? @db.Date
+
   /// copies of the same product (the same air conditioner in three bedrooms) share one id; manuals, warranties
   /// and links filed to one are filed to all of them (receipts, invoices and photos stay per copy). lib/doc-sets.ts
   docSetId String?
@@ -389,6 +420,7 @@ model Fixture {
   priceSources   PriceSource[]
   worksWithA     WorksWith[]     @relation("WorksWithA")
   worksWithB     WorksWith[]     @relation("WorksWithB")
+  moves          ItemMove[]
 
   @@index([householdId])
   @@index([spaceId])
@@ -645,6 +677,33 @@ model Job {
   tags     Tag[]
 
   @@index([householdId])
+}
+
+/// What happened to an item: moved somewhere, lent to someone, or given back. Newest first on the item's page;
+/// the item's location and lentTo fields hold the current state.
+model ItemMove {
+  id          String       @id @default(cuid())
+  householdId String
+  household   Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  fixtureId   String
+  fixture     Fixture      @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  kind        ItemMoveKind
+  date        DateTime     @db.Date
+  place       String? // MOVED: where it went (null: back to its usual place)
+  person      String? // LENT: who has it
+  dueBack     DateTime?    @db.Date
+  notes       String?
+  createdById String?
+  createdAt   DateTime     @default(now())
+
+  @@index([fixtureId, date])
+  @@index([householdId])
+}
+
+enum ItemMoveKind {
+  MOVED
+  LENT
+  RETURNED
 }
 
 /// Two items that are used together without either being part of the other: a cordless battery and every

@@ -9,16 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
 import { BrandField, Section, StoreField } from "@/components/form-bits"
-import { SelectItem, SelectSeparator } from "@/components/ui/select"
-import { Dropdown, MultiDropdown } from "@/components/dropdown"
+import { SelectItem } from "@/components/ui/select"
+import { Dropdown, MultiDropdown, WordDropdown } from "@/components/dropdown"
 import { DocumentRow } from "@/components/documents/document-row"
 import { DocMenu } from "@/components/documents/doc-menu"
 import { FINISH_KINDS, SHEENS, SURFACES, normaliseHex } from "@/lib/finishes"
 import { createFinishes, updateFinish, type FinishInput } from "@/app/(app)/paint/actions"
 import type { FinishRow } from "./finish-types"
-
-// Radix Select can't hold an empty value
-const NO_SHEEN = "__none"
 
 /**
  * Add a paint colour or finish to one or more rooms, or edit one. When editing, photos of the tin
@@ -146,15 +143,7 @@ export function FinishDrawer({
         <Input value={v.product} onChange={(e) => set("product", e.target.value)} placeholder={isPaint ? "Wash&Wear Low Sheen" : "Product or range"} />
       </FieldLabel>
       {isPaint ? (
-        <Dropdown label="Sheen" value={v.sheen || NO_SHEEN} onChange={(s) => set("sheen", s === NO_SHEEN ? "" : s)}>
-          <SelectItem value={NO_SHEEN}>Not sure</SelectItem>
-          <SelectSeparator />
-          {[...SHEENS, ...(v.sheen && !(SHEENS as readonly string[]).includes(v.sheen) ? [v.sheen] : [])].map((s) => (
-            <SelectItem key={s} value={s}>
-              {s}
-            </SelectItem>
-          ))}
-        </Dropdown>
+        <WordDropdown label="Sheen" value={v.sheen} onChange={(s) => set("sheen", s)} options={SHEENS} none="Not sure" />
       ) : null}
       <FieldLabel label="Size">
         <Input value={v.size} onChange={(e) => set("size", e.target.value)} placeholder={isPaint ? "4 L" : "1200 x 600mm"} className="w-48" />

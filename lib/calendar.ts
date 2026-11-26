@@ -33,6 +33,8 @@ export async function calendarEvents(userId: string, base: string, now = new Dat
       odometer: true,
       warrantyExpiresAt: true,
       registrationExpiresAt: true,
+      lentTo: true,
+      lentDueBack: true,
       serviceEnabled: true,
       parent: { select: { id: true, name: true, serviceEnabled: true } },
       property: { select: { name: true } },
@@ -79,6 +81,9 @@ export async function calendarEvents(userId: string, base: string, now = new Dat
     }
     if (f.category === "VEHICLE" && inWindow(f.registrationExpiresAt)) {
       out.push({ uid: `rego-${f.id}`, date: f.registrationExpiresAt, title: `Rego due: ${item}`, description: `${item}'s registration expires.`, location, url })
+    }
+    if (f.lentTo && inWindow(f.lentDueBack)) {
+      out.push({ uid: `lent-${f.id}`, date: f.lentDueBack, title: `Due back: ${item} from ${f.lentTo}`, description: `${f.lentTo} borrowed ${item} and said they'd return it by now.`, location, url })
     }
   }
   return out.sort((a, b) => a.date.getTime() - b.date.getTime())

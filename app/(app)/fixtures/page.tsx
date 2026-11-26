@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { Lamp, Plus, ShieldCheck } from "lucide-react"
+import { Archive, Lamp, Plus, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageBody, PageHeader } from "@/components/shell/page-header"
 import { HeaderAction } from "@/components/shell/header-action"
@@ -10,8 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { db } from "@/lib/db"
 import { requireHousehold } from "@/lib/dal"
 import { warranty } from "@/lib/fixtures"
+import { date, plural } from "@/lib/format"
 import { atLeast } from "@/lib/roles"
 import { FixturesList } from "./fixtures-list"
+import { ArchivedList } from "./archived-list"
 import { comingUp } from "@/lib/coming-up"
 import { itemPhotoSrc } from "@/components/fixtures/category-tile"
 
@@ -50,8 +52,9 @@ export default function FixturesPage({ searchParams }: PageProps<"/fixtures">) {
 async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">["searchParams"] }) {
   const sp = await searchParams
   const c = await requireHousehold()
+  if (sp.archived === "1") return <Archived householdId={c.householdId} propertyId={c.property.id} canEdit={atLeast(c.role, "MEMBER")} />
   const now = new Date()
-  const [items, rooms, brands, upcoming] = await Promise.all([
+  const [items, rooms, brands, upcoming, archivedCount] = await Promise.all([
     db.fixture.findMany({
       where: { householdId: c.householdId, propertyId: c.property.id, archivedAt: null, parentId: null },
       orderBy: { name: "asc" },
@@ -73,12 +76,13 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
     }),
     db.brand.findMany({ where: { householdId: c.householdId, archivedAt: null }, orderBy: { name: "asc" }, select: { name: true } }),
     comingUp(c.householdId, c.property.id, now),
+    db.fixture.count({ where: { householdId: c.householdId, propertyId: c.property.id, archivedAt: { not: null } } }),
   ])
   // the most urgent thing per item (services, rego), shown as a chip (warranties have their own)
   const dueByItem = new Map<string, { tone: "soon" | "overdue"; text: string }>()
   for (const u of upcoming) {
     if (u.what === "Warranty" || dueByItem.has(u.itemId)) continue
-    dueByItem.set(u.itemId, { tone: u.due.tone as "soon" | "overdue", text: `${u.what}: ${u.due.text}` })
+    dueByItem.set(u.itemId, { tone: u.due.tone as "soon" | "overdue", text: u.what === "Due Back" ? u.due.text : `${u.what}: ${u.due.text}` })
   }
   const canEdit = atLeast(c.role, "MEMBER")
   const presetRoom = typeof sp.room === "string" && rooms.some((r) => r.id === sp.room) ? sp.room : null
@@ -106,6 +110,8 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
             roomId: f.space?.id ?? null,
             portable: f.portable,
             parts: f.parts.length,
+            serviceEnabled: f.serviceEnabled,
+            lentTo: f.lentTo,
             worksWith: f._count.worksWithA + f._count.worksWithB,
             docs: f._count.links + f.parts.reduce((a, p) => a + p._count.links, 0),
             warranty: warranty(soonest, now),
@@ -120,7 +126,47 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
           body="Add appliances, taps, lights and systems. Each can have parts (an air conditioner's indoor unit, outdoor unit and remote), with their own manuals and warranties."
         />
       ) : null}
+      {archivedCount ? (
+        <Link href="/fixtures?archived=1" className="flex items-center gap-1.5 self-center text-sm font-semibold text-muted-foreground hover:text-ink">
+          <Archive className="size-4" />
+          {plural(archivedCount, "archived item")}
+        </Link>
+      ) : null}
     </>
+  )
+}
+
+/** Fixtures › Archived: archived items and parts, newest first, to restore. */
+async function Archived({ householdId, propertyId, canEdit }: { householdId: string; propertyId: string; canEdit: boolean }) {
+  const rows = await db.fixture.findMany({
+    where: { householdId, propertyId, archivedAt: { not: null } },
+    orderBy: { archivedAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      model: true,
+      archivedAt: true,
+      coverCropKey: true,
+      cover: { select: { id: true, archivedAt: true } },
+      brand: { select: { name: true } },
+      space: { select: { name: true } },
+      parent: { select: { id: true, name: true, archivedAt: true } },
+    },
+  })
+  return (
+    <ArchivedList
+      canEdit={canEdit}
+      rows={rows.map((f) => ({
+        id: f.id,
+        name: f.name,
+        category: f.category,
+        photo: itemPhotoSrc(f),
+        detail: [[f.brand?.name, f.model].filter(Boolean).join(" "), f.space?.name].filter(Boolean).join(" · "),
+        archived: date(f.archivedAt),
+        partOf: f.parent ? { id: f.parent.id, name: f.parent.name, archived: !!f.parent.archivedAt } : null,
+      }))}
+    />
   )
 }
 

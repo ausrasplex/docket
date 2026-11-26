@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
-import { Chip, Chips, Section } from "@/components/form-bits"
+import { Section } from "@/components/form-bits"
+import { SelectItem } from "@/components/ui/select"
+import { Dropdown, MultiDropdown } from "@/components/dropdown"
 import { JOB_STATUSES } from "@/lib/jobs"
 import { createJob, updateJob, type JobInput } from "@/app/(app)/jobs/actions"
 import { ContactPicker, type ContactLite } from "./contact-picker"
@@ -48,7 +50,6 @@ export function JobDrawer({
     if (open) setV(initial)
   }
   const set = <K extends keyof JobInput>(k: K, val: JobInput[K]) => setV((p) => ({ ...p, [k]: val }))
-  const toggleRoom = (id: string) => set("spaceIds", v.spaceIds.includes(id) ? v.spaceIds.filter((x) => x !== id) : [...v.spaceIds, id])
 
   const save = () =>
     start(async () => {
@@ -79,20 +80,14 @@ export function JobDrawer({
       <FieldLabel label="What Was Done">
         <Input value={v.title} onChange={(e) => set("title", e.target.value)} placeholder="Bathroom renovation" autoFocus />
       </FieldLabel>
-      <Chips label="Status">
+      <Dropdown label="Status" value={v.status} onChange={(s) => set("status", s as JobInput["status"])}>
         {JOB_STATUSES.map((s) => (
-          <Chip key={s.id} on={v.status === s.id} onClick={() => set("status", s.id)}>
+          <SelectItem key={s.id} value={s.id}>
             {s.label}
-          </Chip>
+          </SelectItem>
         ))}
-      </Chips>
-      <Chips label="Rooms">
-        {rooms.map((r) => (
-          <Chip key={r.id} on={v.spaceIds.includes(r.id)} onClick={() => toggleRoom(r.id)}>
-            {r.name}
-          </Chip>
-        ))}
-      </Chips>
+      </Dropdown>
+      <MultiDropdown label="Rooms" options={rooms} value={v.spaceIds} onChange={(ids) => set("spaceIds", ids)} placeholder="No rooms" />
       <ContactPicker contacts={contacts} value={v.contactId} onChange={(id) => set("contactId", id)} />
 
       <Section title="Dates and Approvals" />

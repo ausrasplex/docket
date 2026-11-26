@@ -2,6 +2,7 @@ import "server-only"
 import { db } from "@/lib/db"
 import { warranty } from "@/lib/fixtures"
 import { regoDue, serviceOutlook, type Due } from "@/lib/service"
+import { dueBack } from "@/lib/moves"
 
 /** `itemId` is the item whose page to open (a part opens its item). */
 export type ComingUp = { fixtureId: string; itemId: string; item: string; what: string; due: Due; sortAt: number }
@@ -20,6 +21,8 @@ export async function comingUp(householdId: string, propertyId: string, now = ne
       odometer: true,
       registrationExpiresAt: true,
       warrantyExpiresAt: true,
+      lentTo: true,
+      lentDueBack: true,
       serviceEnabled: true,
       parent: { select: { id: true, name: true, serviceEnabled: true } },
       servicePlans: { where: { archivedAt: null }, select: { id: true, name: true, everyMonths: true, everyKm: true, bookedFor: true, bookedWith: true } },
@@ -45,6 +48,10 @@ export async function comingUp(householdId: string, propertyId: string, now = ne
     if (f.category === "VEHICLE") {
       const due = regoDue(f.registrationExpiresAt, now)
       if (urgent(due)) out.push({ fixtureId: f.id, itemId, item, what: "Registration", due, sortAt: at(due) })
+    }
+    if (f.lentTo && f.lentDueBack) {
+      const due = dueBack(f.lentTo, f.lentDueBack, now)
+      if (urgent(due)) out.push({ fixtureId: f.id, itemId, item, what: "Due Back", due, sortAt: at(due) })
     }
     const w = warranty(f.warrantyExpiresAt, now)
     if (w.tone === "soon") {

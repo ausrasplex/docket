@@ -24,6 +24,8 @@ import { PricesCard } from "./prices-card"
 import { itemPrices, priceSettings } from "@/lib/prices"
 import { PartsList } from "./parts-list"
 import { WorksWithList } from "./works-with-card"
+import { MovesCard } from "./moves-card"
+import { dueBack } from "@/lib/moves"
 import { worksWithIds } from "@/lib/works-with"
 import { DocGroups, type DocGroup } from "@/components/documents/doc-groups"
 import { DocSearchBox } from "@/components/documents/doc-search"
@@ -131,7 +133,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
   if (f.parent) redirect(`/fixtures/${f.parent.id}#part-${f.id}`)
 
   const linkedIds = await worksWithIds(f.id)
-  const [others, rooms, brands, inbox, plans, records, contacts, prices, worksWith] = await Promise.all([
+  const [others, rooms, brands, inbox, plans, records, contacts, prices, worksWith, moves, pastPlaces] = await Promise.all([
     // items this one can share documents with (Share Documents in its menu)
     db.fixture.findMany({
       where: { householdId: c.householdId, parentId: null, id: { not: f.id }, OR: [{ archivedAt: null }, ...(f.docSetId ? [{ docSetId: f.docSetId }] : [])] },
@@ -179,6 +181,9 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
         space: { select: { name: true } },
       },
     }),
+    db.itemMove.findMany({ where: { fixtureId: f.id }, orderBy: [{ date: "desc" }, { createdAt: "desc" }] }),
+    // places things have been moved to before, offered when moving this one
+    db.itemMove.findMany({ where: { householdId: c.householdId, kind: "MOVED", place: { not: null } }, distinct: ["place"], select: { place: true }, take: 30 }),
   ])
   // when each routine is next due: from the latest service that covered it, an estimate for km intervals
   // (from how far it's driven), and any booking
@@ -299,9 +304,10 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
               ) : f.portable ? (
                 <>
                   {makeModel ? " · " : null}
-                  <span className="font-semibold text-ink">Portable</span>
+                  <span className="font-semibold text-ink">{f.location ? `Portable, at ${f.location}` : "Portable"}</span>
                 </>
               ) : null}
+              {f.lentTo ? <span className="font-semibold text-ink"> · Lent to {f.lentTo}</span> : null}
             </span>
           </div>
           <div className="flex w-full flex-wrap gap-2 desk:w-auto">
@@ -438,6 +444,29 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
                 />
               </CardContent>
             </Card>
+            {f.portable || f.lentTo || moves.length ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Moves and Loans</CardTitle>
+                  <CardDescription>Where it is now, who&apos;s borrowed it, and where it&apos;s been.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <MovesCard
+                    fixtureId={f.id}
+                    name={f.name}
+                    canEdit={canEdit}
+                    status={{
+                      location: f.location,
+                      lentTo: f.lentTo,
+                      lentSince: f.lentAt ? date(f.lentAt) : null,
+                      due: f.lentTo ? (({ tone, text }) => ({ tone, text }))(dueBack(f.lentTo, f.lentDueBack)) : null,
+                    }}
+                    log={moves.map((m) => ({ id: m.id, kind: m.kind, date: date(m.date), place: m.place, person: m.person, dueBack: m.dueBack ? date(m.dueBack) : null, notes: m.notes }))}
+                    places={[...new Set([...rooms.map((r) => r.name), ...pastPlaces.map((x) => x.place!)])]}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
           </div>
         </div>
 

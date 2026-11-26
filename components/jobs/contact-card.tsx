@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
-import { Chip, Chips } from "@/components/form-bits"
+import { WordDropdown } from "@/components/dropdown"
 import { Initials } from "@/components/shell/initials"
 import { TRADES } from "@/lib/jobs"
 import { saveContact, type ContactInput } from "@/app/(app)/jobs/actions"
@@ -103,13 +103,7 @@ function ContactDrawer({ open, onOpenChange, contact }: { open: boolean; onOpenC
       <FieldLabel label="Business">
         <Input value={v.business} onChange={(e) => set("business", e.target.value)} />
       </FieldLabel>
-      <Chips label="Trade">
-        {TRADES.map((t) => (
-          <Chip key={t} on={v.trade === t} onClick={() => set("trade", v.trade === t ? "" : t)}>
-            {t}
-          </Chip>
-        ))}
-      </Chips>
+      <WordDropdown label="Trade" value={v.trade} onChange={(t) => set("trade", t)} options={TRADES} />
       <div className="grid grid-cols-2 gap-3">
         <FieldLabel label="Phone">
           <Input value={v.phone} onChange={(e) => set("phone", e.target.value)} inputMode="tel" />

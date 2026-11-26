@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { ArrowDown, ArrowUp, ChevronRight, FileText, Link2, ShieldAlert, ShieldCheck, ShieldX, Tag } from "lucide-react"
+import { ArrowDown, ArrowUp, ChevronRight, FileText, HandHelping, Link2, ShieldAlert, ShieldCheck, ShieldX, Tag } from "lucide-react"
 import { cn } from "cn"
 import { withoutAdd } from "@/components/shell/header-action"
 import { category, type WarrantyState } from "@/lib/fixtures"
@@ -12,6 +12,7 @@ import type { FixtureCategory } from "@/generated/prisma/enums"
 import { BLANK_FIXTURE, FixtureDrawer } from "./fixture-drawer"
 import { CategoryTile } from "@/components/fixtures/category-tile"
 import { DUE_TONE } from "@/lib/service"
+import { CardMenu } from "./card-menu"
 
 export type FixtureCard = {
   id: string
@@ -25,6 +26,10 @@ export type FixtureCard = {
   roomId: string | null
   portable: boolean
   parts: number
+  /** shows Log Service in the card's menu */
+  serviceEnabled: boolean
+  /** who has it, when it's lent out */
+  lentTo: string | null
   /** how many other items it Works With */
   worksWith: number
   docs: number
@@ -82,14 +87,15 @@ export function FixturesList({
             {g.list.map((f) => {
               const c = category(f.category)
               return (
-                <Link key={f.id} href={`/fixtures/${f.id}`} className="lift group flex flex-col gap-3 rounded-3xl bg-surface p-4">
-                  <div className="flex items-center gap-3">
+                <div key={f.id} className="relative">
+                <Link href={`/fixtures/${f.id}`} className="lift group flex h-full flex-col gap-3 rounded-3xl bg-surface p-4">
+                  <div className={cn("flex items-center gap-3", canEdit && "pr-9")}>
                     <CategoryTile value={f.category} src={f.photo} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-[15px] font-bold">{f.name}</span>
                       <span className="truncate text-xs font-medium text-muted-foreground">{f.makeModel || c.label}</span>
                     </span>
-                    <ChevronRight className="cardarrow size-5 text-muted-foreground" />
+                    {canEdit ? null : <ChevronRight className="cardarrow size-5 text-muted-foreground" />}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
                     {f.due ? <span className={cn("rounded-full px-2.5 py-1", DUE_TONE[f.due.tone])}>{f.due.text}</span> : null}
@@ -101,6 +107,12 @@ export function FixturesList({
                       </span>
                     ) : null}
                     {f.parts ? <span className="rounded-full bg-surface2 px-2.5 py-1">{plural(f.parts, "part")}</span> : null}
+                    {f.lentTo ? (
+                      <span className="flex items-center gap-1 rounded-full bg-t2 px-2.5 py-1" title={`Lent to ${f.lentTo}`}>
+                        <HandHelping className="size-3.5" />
+                        {f.lentTo}
+                      </span>
+                    ) : null}
                     {f.worksWith ? (
                       <span className="flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1" title={`Works with ${plural(f.worksWith, "other item")}`}>
                         <Link2 className="size-3.5" />
@@ -135,6 +147,13 @@ export function FixturesList({
                     ) : null}
                   </div>
                 </Link>
+                {/* outside the link, so opening the menu doesn't open the item */}
+                {canEdit ? (
+                  <div className="absolute top-4 right-3">
+                    <CardMenu id={f.id} name={f.name} serviceEnabled={f.serviceEnabled} canLend={f.portable && !f.lentTo} />
+                  </div>
+                ) : null}
+                </div>
               )
             })}
           </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, useTransition } from "react"
+import { useIntent } from "@/components/shell/intent"
 import { useRouter } from "next/navigation"
 import { Archive, CalendarCheck, CalendarClock, CalendarX, Camera, Check, ChevronDown, FileUp, Gauge, History, Inbox, MoreHorizontal, Paperclip, Pencil, Trash2, Wrench, X } from "lucide-react"
 import { toast } from "sonner"
@@ -89,7 +90,8 @@ export function ServiceCard({
   canEdit: boolean
 }) {
   const [plan, setPlan] = useState<PlanRow | "new" | null>(null)
-  const [record, setRecord] = useState<RecordRow | NewRecord | null>(null)
+  const logIntent = useIntent("service")
+  const [record, setRecord] = useState<RecordRow | NewRecord | null>(logIntent.hit && canEdit ? { new: true, date: today(), planIds: [] } : null)
   const [booking, setBooking] = useState(false)
   const [deleting, setDeleting] = useState<RecordRow | null>(null)
   const [, start] = useTransition()
@@ -322,7 +324,10 @@ export function ServiceCard({
         plans={plans}
         contacts={contacts}
         inbox={inbox}
-        onClose={() => setRecord(null)}
+        onClose={() => {
+          setRecord(null)
+          logIntent.clear()
+        }}
       />
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>

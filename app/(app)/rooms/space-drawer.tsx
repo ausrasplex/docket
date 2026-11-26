@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Drawer, FieldLabel } from "@/components/drawer"
+import { SelectItem, SelectSeparator } from "@/components/ui/select"
+import { Dropdown, NONE } from "@/components/dropdown"
 import { SPACE_KINDS } from "@/lib/spaces"
 import type { SpaceKind } from "@/generated/prisma/enums"
 import { createSpace, updateSpace, type SpaceInput } from "./actions"
@@ -71,51 +73,29 @@ export function SpaceDrawer({
         <Input value={v.name} onChange={(e) => set("name", e.target.value)} placeholder="Kitchen" autoFocus onKeyDown={(e) => e.key === "Enter" && v.name.trim() && save()} />
       </FieldLabel>
 
-      <div role="radiogroup" aria-label="Type" className="flex flex-col gap-2">
-        <span className="text-[13px] font-bold text-muted-foreground">Type</span>
-        <div className="grid grid-cols-2 gap-2">
-          {SPACE_KINDS.map((k) => (
-            <button
-              key={k.id}
-              type="button"
-              role="radio"
-              aria-checked={v.kind === k.id}
-              onClick={() => set("kind", k.id as SpaceKind)}
-              className={cn(
-                "flex min-h-14 cursor-pointer items-center gap-2.5 rounded-xl border-2 bg-surface2 px-3 text-left text-sm font-bold hover:bg-t1",
-                v.kind === k.id ? "border-sel" : "border-transparent"
-              )}
-            >
-              <span className={cn("flex size-8 flex-none items-center justify-center rounded-[10px] text-on-a", TONE[k.tone])}>
-                <k.icon className="size-[18px]" />
-              </span>
-              {k.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Dropdown label="Type" value={v.kind} onChange={(k) => set("kind", k as SpaceKind)}>
+        {SPACE_KINDS.map((k) => (
+          <SelectItem key={k.id} value={k.id}>
+            <span className={cn("flex size-6 items-center justify-center rounded-full text-on-a", TONE[k.tone])}>
+              <k.icon className="size-3.5" />
+            </span>
+            {k.label}
+          </SelectItem>
+        ))}
+      </Dropdown>
 
       {v.kind !== "FLOOR" && floors.length ? (
-        <div role="radiogroup" aria-label="Floor" className="flex flex-col gap-2">
-          <span className="text-[13px] font-bold text-muted-foreground">On Floor</span>
-          <div className="flex flex-wrap gap-2">
-            {[{ id: null, name: "None" } as { id: string | null; name: string }, ...floors.filter((f) => f.id !== initial.id)].map((f) => (
-              <button
-                key={f.id ?? "none"}
-                type="button"
-                role="radio"
-                aria-checked={v.parentId === f.id}
-                onClick={() => set("parentId", f.id)}
-                className={cn(
-                  "min-h-11 cursor-pointer rounded-full px-4 text-sm font-semibold",
-                  v.parentId === f.id ? "bg-primary text-primary-foreground" : "border border-outline bg-surface hover:bg-surface2"
-                )}
-              >
+        <Dropdown label="On Floor" value={v.parentId ?? NONE} onChange={(f) => set("parentId", f === NONE ? null : f)}>
+          <SelectItem value={NONE}>None</SelectItem>
+          <SelectSeparator />
+          {floors
+            .filter((f) => f.id !== initial.id)
+            .map((f) => (
+              <SelectItem key={f.id} value={f.id}>
                 {f.name}
-              </button>
+              </SelectItem>
             ))}
-          </div>
-        </div>
+        </Dropdown>
       ) : null}
 
       <FieldLabel label="Notes (optional)">
