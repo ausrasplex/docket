@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { ArrowDown, ArrowUp, ChevronRight, FileText, ShieldAlert, ShieldCheck, ShieldX, Tag } from "lucide-react"
+import { ArrowDown, ArrowUp, ChevronRight, FileText, Link2, ShieldAlert, ShieldCheck, ShieldX, Tag } from "lucide-react"
 import { cn } from "cn"
 import { withoutAdd } from "@/components/shell/header-action"
 import { category, type WarrantyState } from "@/lib/fixtures"
@@ -25,6 +25,8 @@ export type FixtureCard = {
   roomId: string | null
   portable: boolean
   parts: number
+  /** how many other items it Works With */
+  worksWith: number
   docs: number
   warranty: WarrantyState
   /** the lowest and highest recorded shop price, when it's tracked */
@@ -99,6 +101,13 @@ export function FixturesList({
                       </span>
                     ) : null}
                     {f.parts ? <span className="rounded-full bg-surface2 px-2.5 py-1">{plural(f.parts, "part")}</span> : null}
+                    {f.worksWith ? (
+                      <span className="flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1" title={`Works with ${plural(f.worksWith, "other item")}`}>
+                        <Link2 className="size-3.5" />
+                        {f.worksWith}
+                        <span className="sr-only"> linked {f.worksWith === 1 ? "item" : "items"}</span>
+                      </span>
+                    ) : null}
                     <span className="flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1">
                       <FileText className="size-3.5" />
                       {f.docs}

@@ -60,7 +60,8 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
         space: { select: { id: true, name: true } },
         cover: { select: { id: true, archivedAt: true } },
         parts: { where: { archivedAt: null }, select: { warrantyExpiresAt: true, _count: { select: { links: true } } } },
-        _count: { select: { links: true } },
+        // documents, and the items it Works With (either side of the pair; archived ones don't count)
+        _count: { select: { links: true, worksWithA: { where: { b: { archivedAt: null } } }, worksWithB: { where: { a: { archivedAt: null } } } } },
         // the lowest and highest price recorded at any of its shops (lib/prices.ts)
         priceSources: { select: { checks: { select: { price: true } } } },
       },
@@ -105,6 +106,7 @@ async function Fixtures({ searchParams }: { searchParams: PageProps<"/fixtures">
             roomId: f.space?.id ?? null,
             portable: f.portable,
             parts: f.parts.length,
+            worksWith: f._count.worksWithA + f._count.worksWithB,
             docs: f._count.links + f.parts.reduce((a, p) => a + p._count.links, 0),
             warranty: warranty(soonest, now),
             prices: priceRange(f.priceSources.flatMap((s) => s.checks.map((k) => Number(k.price.toString())))),
