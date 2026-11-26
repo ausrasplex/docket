@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
+import { pair, worksWithIds } from "@/lib/works-with"
 import { logActivity, requireHousehold } from "@/lib/dal"
 import { Prisma } from "@/generated/prisma/client"
 import { copyCrop } from "@/lib/cover"
@@ -85,6 +86,7 @@ export async function duplicateFixture(id: string, copies: DuplicateCopy[]): Pro
     replacementFromPrices: false, // the copy has no shops of its own
     includedInSale: x.includedInSale,
     serviceEnabled: x.serviceEnabled,
+    partsEnabled: x.partsEnabled,
     notes: x.notes,
     createdById: c.user.id,
     links: { create: x.links.map((l) => ({ documentId: l.documentId, label: l.label, sortOrder: l.sortOrder })) },
@@ -92,6 +94,8 @@ export async function duplicateFixture(id: string, copies: DuplicateCopy[]): Pro
     servicePlans: { create: x.servicePlans.map((s) => ({ ...s, householdId: x.householdId })) },
   })
 
+  // a copy works with the same things (the battery that fits the original fits the copy)
+  const partners = await worksWithIds(f.id)
   let ids: string[]
   try {
     ids = await db.$transaction(async (tx) => {
@@ -105,6 +109,7 @@ export async function duplicateFixture(id: string, copies: DuplicateCopy[]): Pro
           const spaceId = p.spaceId && p.spaceId !== f.spaceId ? p.spaceId : null
           await tx.fixture.create({ data: { ...fields(p, pk), parentId: item.id, spaceId, serial } })
         }
+        if (partners.length) await tx.worksWith.createMany({ data: partners.map((x) => pair(item.id, x)), skipDuplicates: true })
         out.push(item.id)
       }
       return out

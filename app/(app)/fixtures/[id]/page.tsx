@@ -23,6 +23,8 @@ import { BrandCard } from "./brand-card"
 import { PricesCard } from "./prices-card"
 import { itemPrices, priceSettings } from "@/lib/prices"
 import { PartsList } from "./parts-list"
+import { WorksWithList } from "./works-with-card"
+import { worksWithIds } from "@/lib/works-with"
 import { DocGroups, type DocGroup } from "@/components/documents/doc-groups"
 import { DocSearchBox } from "@/components/documents/doc-search"
 import type { FixtureInput } from "../actions"
@@ -65,6 +67,7 @@ function toInput(f: {
   replacementFromPrices: boolean
   includedInSale: boolean
   serviceEnabled: boolean
+  partsEnabled: boolean
   notes: string | null
   registration: string | null
   vin: string | null
@@ -91,6 +94,7 @@ function toInput(f: {
     replacementFromPrices: f.replacementFromPrices,
     includedInSale: f.includedInSale,
     serviceEnabled: f.serviceEnabled,
+    partsEnabled: f.partsEnabled,
     notes: f.notes ?? "",
     registration: f.registration ?? "",
     vin: f.vin ?? "",
@@ -126,7 +130,8 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
   // a part's page is its item's page
   if (f.parent) redirect(`/fixtures/${f.parent.id}#part-${f.id}`)
 
-  const [others, rooms, brands, inbox, plans, records, contacts, prices] = await Promise.all([
+  const linkedIds = await worksWithIds(f.id)
+  const [others, rooms, brands, inbox, plans, records, contacts, prices, worksWith] = await Promise.all([
     // items this one can share documents with (Share Documents in its menu)
     db.fixture.findMany({
       where: { householdId: c.householdId, parentId: null, id: { not: f.id }, OR: [{ archivedAt: null }, ...(f.docSetId ? [{ docSetId: f.docSetId }] : [])] },
@@ -157,6 +162,23 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
     }),
     loadContacts(c.householdId),
     itemPrices(f.id),
+    // what it can be linked with (Works With): other whole items, plus any archived ones still linked
+    db.fixture.findMany({
+      where: { householdId: c.householdId, parentId: null, id: { not: f.id }, OR: [{ archivedAt: null }, { id: { in: linkedIds } }] },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        model: true,
+        category: true,
+        portable: true,
+        archivedAt: true,
+        coverCropKey: true,
+        cover: { select: { id: true, archivedAt: true } },
+        brand: { select: { name: true } },
+        space: { select: { name: true } },
+      },
+    }),
   ])
   // when each routine is next due: from the latest service that covered it, an estimate for km intervals
   // (from how far it's driven), and any booking
@@ -356,6 +378,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
                 }}
               />
             ) : null}
+            {f.partsEnabled || f.parts.length ? (
             <Card>
               <CardHeader>
                 <CardTitle>Parts</CardTitle>
@@ -388,6 +411,29 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
                       icon: { type: "part" },
                       cropHref: `/fixtures/${p.id}/photo`,
                     },
+                  }))}
+                />
+              </CardContent>
+            </Card>
+            ) : null}
+            <Card>
+              <CardHeader>
+                <CardTitle>Works With</CardTitle>
+                <CardDescription>Separate items it&apos;s used with, like a battery shared by cordless appliances.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WorksWithList
+                  id={f.id}
+                  name={f.name}
+                  canEdit={canEdit}
+                  items={worksWith.map((x) => ({
+                    id: x.id,
+                    name: x.name,
+                    detail: [[x.brand?.name, x.model].filter(Boolean).join(" "), x.space?.name ?? (x.portable ? "Portable" : null)].filter(Boolean).join(" · "),
+                    category: x.category,
+                    src: itemPhotoSrc(x),
+                    archived: !!x.archivedAt,
+                    linked: linkedIds.includes(x.id),
                   }))}
                 />
               </CardContent>

@@ -33,6 +33,8 @@ export type FixtureInput = {
   includedInSale: boolean
   /** shows the Service section (items only) */
   serviceEnabled: boolean
+  /** shows the Parts section (items only); stays on while the item has parts */
+  partsEnabled: boolean
   notes: string
   // vehicles
   registration: string
@@ -106,6 +108,7 @@ function data(input: FixtureInput) {
     replacementFromPrices: input.replacementFromPrices,
     includedInSale: input.includedInSale,
     serviceEnabled: input.serviceEnabled,
+    partsEnabled: input.partsEnabled,
     notes: input.notes.trim() || null,
     registration: input.registration.trim().toUpperCase() || null,
     vin: input.vin.trim().toUpperCase() || null,
@@ -146,6 +149,8 @@ export async function createFixture(input: FixtureInput, parentId: string | null
     parent = await db.fixture.findFirst({ where: { id: parentId, householdId: c.householdId, parentId: null } })
     if (!parent) return { ok: false, error: "Parts can only be added to an item, not to another part." }
   }
+  // adding a part turns its item's Parts section on
+  if (parent && !parent.partsEnabled) await db.fixture.update({ where: { id: parent.id }, data: { partsEnabled: true } })
   const last = parent ? await db.fixture.aggregate({ where: { parentId }, _max: { sortOrder: true } }) : null
   const f = await db.fixture.create({
     data: {
@@ -188,7 +193,12 @@ export async function updateFixture(id: string, input: FixtureInput): Promise<Re
   if (bad) return { ok: false, error: bad }
   await db.fixture.update({
     where: { id },
-    data: { ...data(input), ...(f.parentId ? { portable: false } : {}), brandId: await brandId(c.householdId, input.brand), updatedById: c.user.id },
+    data: {
+      ...data(input),
+      ...(f.parentId ? { portable: false } : {}),
+      // Parts can only be turned off once the item has none left
+      ...(!input.partsEnabled && (await db.fixture.count({ where: { parentId: id, archivedAt: null } })) ? { partsEnabled: true } : {}),
+      brandId: await brandId(c.householdId, input.brand), updatedById: c.user.id },
   })
   await syncReplacement(id)
   refresh()

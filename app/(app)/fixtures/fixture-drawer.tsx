@@ -58,6 +58,7 @@ export const BLANK_FIXTURE: FixtureInput = {
   replacementValue: "",
   includedInSale: false,
   serviceEnabled: false,
+  partsEnabled: false,
   replacementFromPrices: false,
   notes: "",
   registration: "",
@@ -79,6 +80,7 @@ export function FixtureDrawer({
   rooms,
   brands,
   tracked = null,
+  partCount = 0,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
@@ -89,6 +91,8 @@ export function FixtureDrawer({
   brands: string[]
   /** the cheapest current price at the item's tracked shops, offered as its Replacement Cost */
   tracked?: number | null
+  /** the item's parts: while it has any, Track Parts stays on */
+  partCount?: number
 }) {
   const router = useRouter()
   const [v, setV] = useState(initial)
@@ -337,6 +341,26 @@ export function FixtureDrawer({
           <span className="flex flex-col gap-0.5">
             <b className="text-sm">Track Servicing</b>
             <span className="text-xs text-muted-foreground">Shows the Service section, for regular care like an annual service. Untick for things that never need it.</span>
+          </span>
+        </label>
+      ) : null}
+
+      {!isPart ? (
+        <label className={cn("flex min-h-15 shrink-0 items-center gap-3 rounded-xl bg-surface2 px-3.5 py-3", partCount ? "cursor-not-allowed" : "cursor-pointer")}>
+          <input
+            type="checkbox"
+            checked={v.partsEnabled || partCount > 0}
+            disabled={partCount > 0}
+            onChange={(e) => setV((p) => ({ ...p, partsEnabled: e.target.checked }))}
+            className="size-5 flex-none accent-[var(--sel)] disabled:opacity-60"
+          />
+          <span className="flex flex-col gap-0.5">
+            <b className="text-sm">Track Parts</b>
+            <span className="text-xs text-muted-foreground">
+              {partCount
+                ? `Stays on while it has ${partCount === 1 ? "a part" : `${partCount} parts`}. Archive them first to turn this off.`
+                : "Shows the Parts section, for pieces with their own model, serial or manual, like an outdoor unit or remote."}
+            </span>
           </span>
         </label>
       ) : null}

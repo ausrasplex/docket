@@ -48,7 +48,7 @@ model User {
   sessions       Session[]
   accounts       Account[]
   memberships    Membership[]
-  invitesCreated Invite[]     @relation("InviteCreatedBy")
+  invitesCreated Invite[]      @relation("InviteCreatedBy")
   invitesUsed    InviteUse[]
   activity       Activity[]
   calendarFeed   CalendarFeed?
@@ -350,15 +350,17 @@ model Fixture {
   installer         Contact?  @relation(fields: [installerId], references: [id], onDelete: SetNull)
 
   // for the insurance and sale exports
-  purchasePrice    Decimal? @db.Decimal(12, 2)
-  replacementValue Decimal? @db.Decimal(12, 2)
+  purchasePrice         Decimal? @db.Decimal(12, 2)
+  replacementValue      Decimal? @db.Decimal(12, 2)
   /// replacementValue follows the cheapest current price at the item's tracked shops (lib/prices.ts)
-  replacementFromPrices Boolean @default(false)
-  includedInSale   Boolean  @default(true) // fixed to the house (true) or contents you'd take with you (false)
-  portable         Boolean  @default(false) // moves around (a vacuum, a heater, tools): listed under Portable, not a room
+  replacementFromPrices Boolean  @default(false)
+  includedInSale        Boolean  @default(true) // fixed to the house (true) or contents you'd take with you (false)
+  portable              Boolean  @default(false) // moves around (a vacuum, a heater, tools): listed under Portable, not a room
   /// shows the Service section on the item's page; off for things that never need servicing (a table, a TV).
   /// Its routines stay, but leave Coming Up and the calendar feed until it's turned back on
-  serviceEnabled   Boolean  @default(true)
+  serviceEnabled        Boolean  @default(true)
+  /// shows the Parts section on the item's page; can only be turned off while the item has no parts
+  partsEnabled          Boolean  @default(true)
 
   /// copies of the same product (the same air conditioner in three bedrooms) share one id; manuals, warranties
   /// and links filed to one are filed to all of them (receipts, invoices and photos stay per copy). lib/doc-sets.ts
@@ -376,6 +378,8 @@ model Fixture {
   servicePlans   ServicePlan[]
   serviceRecords ServiceRecord[]
   priceSources   PriceSource[]
+  worksWithA     WorksWith[]     @relation("WorksWithA")
+  worksWithB     WorksWith[]     @relation("WorksWithB")
 
   @@index([householdId])
   @@index([spaceId])
@@ -634,6 +638,19 @@ model Job {
   @@index([householdId])
 }
 
+/// Two items that are used together without either being part of the other: a cordless battery and every
+/// appliance it fits, a charger, a shared remote. Stored once per pair (aId < bId) and read from both sides.
+model WorksWith {
+  aId       String
+  a         Fixture  @relation("WorksWithA", fields: [aId], references: [id], onDelete: Cascade)
+  bId       String
+  b         Fixture  @relation("WorksWithB", fields: [bId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([aId, bId])
+  @@index([bId])
+}
+
 model JobSpace {
   jobId   String
   job     Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -725,9 +742,9 @@ model Document {
   // … or a web link
   url String?
 
-  documentDate DateTime? @db.Date // date on the receipt or certificate
+  documentDate DateTime?   @db.Date // date on the receipt or certificate
   issuer       String? // who issued a certificate or warranty
-  expiresAt    DateTime? @db.Date // certificates and warranties
+  expiresAt    DateTime?   @db.Date // certificates and warranties
   text         String? // extracted text for search (PDF text, later OCR)
   /// Whether the PDF's text has been read into `pages` for searching. Null: not yet (it is read on upload,
   /// or on the first search for older files). EMPTY: no text layer (a scan), the ones OCR would pick up.
@@ -736,8 +753,8 @@ model Document {
   archivedAt   DateTime?
   createdById  String?
   updatedById  String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   links           DocumentLink[]
   tags            Tag[]

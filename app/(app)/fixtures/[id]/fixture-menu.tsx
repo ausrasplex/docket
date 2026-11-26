@@ -56,10 +56,12 @@ export function FixtureMenu({
             <Pencil />
             Edit Item
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setAddPart(true)}>
-            <Plus />
-            Add Part
-          </DropdownMenuItem>
+          {initial.partsEnabled || parts.length ? (
+            <DropdownMenuItem onSelect={() => setAddPart(true)}>
+              <Plus />
+              Add Part
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onSelect={() => setPhotoOpen(true)}>
             <Camera />
             Item Photo
@@ -91,7 +93,7 @@ export function FixtureMenu({
       <CoverPhotoDrawer open={photoOpen} onOpenChange={setPhotoOpen} target={photo} photos={photos} />
       <DuplicateDialog open={duplicate} onOpenChange={setDuplicate} id={id} name={name} roomId={initial.spaceId} rooms={rooms} parts={parts} />
       <ShareDocsDialog open={share} onOpenChange={setShare} id={id} name={name} candidates={shareWith} />
-      <FixtureDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} rooms={rooms} brands={brands} tracked={tracked} />
+      <FixtureDrawer open={edit} onOpenChange={setEdit} initial={initial} editingId={id} rooms={rooms} brands={brands} tracked={tracked} partCount={parts.length} />
       <FixtureDrawer
         open={addPart}
         onOpenChange={setAddPart}
