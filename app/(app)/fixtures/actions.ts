@@ -35,6 +35,7 @@ export type FixtureInput = {
   serviceEnabled: boolean
   /** shows the Parts section (items only); stays on while the item has parts */
   partsEnabled: boolean
+  sparesEnabled: boolean
   notes: string
   // vehicles
   registration: string
@@ -109,6 +110,7 @@ function data(input: FixtureInput) {
     includedInSale: input.includedInSale,
     serviceEnabled: input.serviceEnabled,
     partsEnabled: input.partsEnabled,
+    sparesEnabled: input.sparesEnabled,
     notes: input.notes.trim() || null,
     registration: input.registration.trim().toUpperCase() || null,
     vin: input.vin.trim().toUpperCase() || null,

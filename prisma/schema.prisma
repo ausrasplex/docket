@@ -167,6 +167,7 @@ model Household {
   spaces         Space[]
   fixtures       Fixture[]
   itemMoves      ItemMove[]
+  spares         Spare[]
   finishes       Finish[]
   contacts       Contact[]
   brands         Brand[]
@@ -395,6 +396,8 @@ model Fixture {
   serviceEnabled        Boolean  @default(true)
   /// shows the Parts section on the item's page; can only be turned off while the item has no parts
   partsEnabled          Boolean  @default(true)
+  /// shows the Spares and Consumables section (filters, bulbs, batteries); off by default
+  sparesEnabled         Boolean  @default(false)
 
   // where a portable thing is now, and who has it (kept up by its Moves and Loans log, lib/moves.ts)
   location    String? // "Caravan", "Mum's house"; null means its usual place
@@ -421,6 +424,7 @@ model Fixture {
   worksWithA     WorksWith[]     @relation("WorksWithA")
   worksWithB     WorksWith[]     @relation("WorksWithB")
   moves          ItemMove[]
+  spares         Spare[]
 
   @@index([householdId])
   @@index([spaceId])
@@ -923,4 +927,31 @@ model Activity {
   createdAt   DateTime  @default(now())
 
   @@index([householdId, createdAt])
+}
+
+/// A spare or consumable an item uses (a water filter, a bulb, a vacuum bag): its part number, where to buy
+/// it, how many are on hand, and how often it's replaced. Replacing one takes one from stock (lib/spares.ts).
+model Spare {
+  id             String    @id @default(cuid())
+  householdId    String
+  household      Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  fixtureId      String
+  fixture        Fixture   @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  name           String
+  partNumber     String?
+  buyUrl         String?
+  onHand         Int       @default(0)
+  /// running low at or below this many (null: not watched)
+  lowAt          Int?
+  /// replaced every this many months (null: only when needed)
+  everyMonths    Int?
+  lastReplacedAt DateTime? @db.Date
+  notes          String?
+  sortOrder      Int       @default(0)
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([fixtureId])
+  @@index([householdId])
 }

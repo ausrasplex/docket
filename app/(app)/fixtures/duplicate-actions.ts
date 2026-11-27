@@ -87,6 +87,7 @@ export async function duplicateFixture(id: string, copies: DuplicateCopy[]): Pro
     includedInSale: x.includedInSale,
     serviceEnabled: x.serviceEnabled,
     partsEnabled: x.partsEnabled,
+    sparesEnabled: x.sparesEnabled,
     notes: x.notes,
     createdById: c.user.id,
     links: { create: x.links.map((l) => ({ documentId: l.documentId, label: l.label, sortOrder: l.sortOrder })) },

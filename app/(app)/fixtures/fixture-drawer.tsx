@@ -40,6 +40,7 @@ export const BLANK_FIXTURE: FixtureInput = {
   includedInSale: false,
   serviceEnabled: false,
   partsEnabled: false,
+  sparesEnabled: false,
   replacementFromPrices: false,
   notes: "",
   registration: "",
@@ -342,6 +343,16 @@ export function FixtureDrawer({
                 ? `Stays on while it has ${partCount === 1 ? "a part" : `${partCount} parts`}. Archive them first to turn this off.`
                 : "Shows the Parts section, for pieces with their own model, serial or manual, like an outdoor unit or remote."}
             </span>
+          </span>
+        </label>
+      ) : null}
+
+      {!isPart ? (
+        <label className="flex min-h-15 shrink-0 cursor-pointer items-center gap-3 rounded-xl bg-surface2 px-3.5 py-3">
+          <input type="checkbox" checked={v.sparesEnabled} onChange={(e) => setV((p) => ({ ...p, sparesEnabled: e.target.checked }))} className="size-5 flex-none accent-[var(--sel)]" />
+          <span className="flex flex-col gap-0.5">
+            <b className="text-sm">Track Spares</b>
+            <span className="text-xs text-muted-foreground">Shows the Spares and Consumables section, for filters, bulbs, bags or batteries it gets through.</span>
           </span>
         </label>
       ) : null}

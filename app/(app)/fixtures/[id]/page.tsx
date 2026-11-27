@@ -25,6 +25,8 @@ import { itemPrices, priceSettings } from "@/lib/prices"
 import { PartsList } from "./parts-list"
 import { WorksWithList } from "./works-with-card"
 import { MovesCard } from "./moves-card"
+import { SparesCard } from "./spares-card"
+import { replaceDue, stock } from "@/lib/spares"
 import { dueBack } from "@/lib/moves"
 import { worksWithIds } from "@/lib/works-with"
 import { DocGroups, type DocGroup } from "@/components/documents/doc-groups"
@@ -70,6 +72,7 @@ function toInput(f: {
   includedInSale: boolean
   serviceEnabled: boolean
   partsEnabled: boolean
+  sparesEnabled: boolean
   notes: string | null
   registration: string | null
   vin: string | null
@@ -97,6 +100,7 @@ function toInput(f: {
     includedInSale: f.includedInSale,
     serviceEnabled: f.serviceEnabled,
     partsEnabled: f.partsEnabled,
+    sparesEnabled: f.sparesEnabled,
     notes: f.notes ?? "",
     registration: f.registration ?? "",
     vin: f.vin ?? "",
@@ -133,7 +137,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
   if (f.parent) redirect(`/fixtures/${f.parent.id}#part-${f.id}`)
 
   const linkedIds = await worksWithIds(f.id)
-  const [others, rooms, brands, inbox, plans, records, contacts, prices, worksWith, moves, pastPlaces] = await Promise.all([
+  const [others, rooms, brands, inbox, plans, records, contacts, prices, worksWith, moves, pastPlaces, spares] = await Promise.all([
     // items this one can share documents with (Share Documents in its menu)
     db.fixture.findMany({
       where: { householdId: c.householdId, parentId: null, id: { not: f.id }, OR: [{ archivedAt: null }, ...(f.docSetId ? [{ docSetId: f.docSetId }] : [])] },
@@ -184,6 +188,7 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
     db.itemMove.findMany({ where: { fixtureId: f.id }, orderBy: [{ date: "desc" }, { createdAt: "desc" }] }),
     // places things have been moved to before, offered when moving this one
     db.itemMove.findMany({ where: { householdId: c.householdId, kind: "MOVED", place: { not: null } }, distinct: ["place"], select: { place: true }, take: 30 }),
+    db.spare.findMany({ where: { fixtureId: f.id }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
   ])
   // when each routine is next due: from the latest service that covered it, an estimate for km intervals
   // (from how far it's driven), and any booking
@@ -444,6 +449,43 @@ async function Fixture({ params }: { params: PageProps<"/fixtures/[id]">["params
                 />
               </CardContent>
             </Card>
+            {f.sparesEnabled ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Spares and Consumables</CardTitle>
+                  <CardDescription>Filters, bulbs, bags and batteries it gets through, with part numbers and what&apos;s on hand.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SparesCard
+                    fixtureId={f.id}
+                    name={f.name}
+                    canEdit={canEdit}
+                    spares={spares.map((s) => ({
+                      id: s.id,
+                      name: s.name,
+                      partNumber: s.partNumber,
+                      buyUrl: s.buyUrl,
+                      onHand: s.onHand,
+                      stock: stock(s),
+                      interval: s.everyMonths ? `Every ${s.everyMonths === 1 ? "month" : `${s.everyMonths} months`}` : null,
+                      lastReplaced: s.lastReplacedAt ? date(s.lastReplacedAt) : null,
+                      due: (({ tone, text }) => ({ tone, text }))(replaceDue(s)),
+                      notes: s.notes,
+                      input: {
+                        name: s.name,
+                        partNumber: s.partNumber ?? "",
+                        buyUrl: s.buyUrl ?? "",
+                        onHand: String(s.onHand),
+                        lowAt: s.lowAt != null ? String(s.lowAt) : "",
+                        everyMonths: s.everyMonths != null ? String(s.everyMonths) : "",
+                        lastReplacedAt: iso(s.lastReplacedAt),
+                        notes: s.notes ?? "",
+                      },
+                    }))}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
             {f.portable || f.lentTo || moves.length ? (
               <Card>
                 <CardHeader>

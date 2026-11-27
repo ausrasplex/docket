@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { Car, ChevronRight, DoorOpen, HandHelping, Inbox, Lamp, Receipt, ShieldCheck, Wrench } from "lucide-react"
+import { Car, ChevronRight, DoorOpen, HandHelping, Inbox, Lamp, Package, Receipt, ShieldCheck, Wrench } from "lucide-react"
 import { cn } from "cn"
 import { comingUp } from "@/lib/coming-up"
 import { DUE_TONE } from "@/lib/service"
@@ -66,7 +66,7 @@ async function Home() {
         {upcoming.slice(0, 8).map((u) => (
           <Link key={u.fixtureId + u.what} href={`/fixtures/${u.itemId}`} className="lift group flex items-center gap-3 border-t border-line py-3 first:border-t-0">
             <span className={cn("flex size-10 flex-none items-center justify-center rounded-full", u.due.tone === "overdue" ? "bg-danger-soft text-danger" : "bg-t2")}>
-              {u.what === "Warranty" ? <ShieldCheck className="size-5" /> : u.what === "Registration" ? <Car className="size-5" /> : u.what === "Due Back" ? <HandHelping className="size-5" /> : <Wrench className="size-5" />}
+              {u.spare ? <Package className="size-5" /> : u.what === "Warranty" ? <ShieldCheck className="size-5" /> : u.what === "Registration" ? <Car className="size-5" /> : u.what === "Due Back" ? <HandHelping className="size-5" /> : <Wrench className="size-5" />}
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-[15px] font-bold">{u.what}</span>
